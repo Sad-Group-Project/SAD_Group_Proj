@@ -27,7 +27,7 @@ export default defineComponent({
   },
 
   setup() {
-    const backendUrl =  "http://127.0.0.1:5000";
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
     console.log("Backend URL:", backendUrl);
 
     const fetchStocks = async () => {
