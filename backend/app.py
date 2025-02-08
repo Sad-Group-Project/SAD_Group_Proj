@@ -4,13 +4,16 @@ import os
 
 app = Flask(__name__)
 
-app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL")
-API_BASE_URL = os.getenv("FRONTEND_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
 
+print("FRONTEND_URL:", os.getenv("FRONTEND_URL"))
+print("PRODUCTION_FRONTEND_URL:", os.getenv("PRODUCTION_FRONTEND_URL"))
+
+origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
 
 
-CORS(app, origins=[API_BASE_URL, PRODUCTION_FRONTEND_URL])
+CORS(app, origins=origins)
 
 @app.route('/')
 def hello():
