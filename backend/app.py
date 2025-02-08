@@ -15,7 +15,7 @@ CORS(app, origins=[API_BASE_URL, PRODUCTION_FRONTEND_URL])
 
 @app.route('/')
 def hello():
-    return "Hello, Backend connected"
+    return "Hello, Backend connected!"
 
 @app.route('/api/stocks')
 def home():
