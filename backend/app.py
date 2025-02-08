@@ -12,8 +12,9 @@ print("PRODUCTION_FRONTEND_URL:", os.getenv("PRODUCTION_FRONTEND_URL"))
 
 origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
 
+print("Allowed CORS Origins:", origins)
 
-CORS(app)
+CORS(app, origins=origins)
 
 @app.route('/')
 def hello():
