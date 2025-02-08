@@ -7,14 +7,16 @@ load_dotenv()
 
 app = Flask(__name__)
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL")
+API_BASE_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
 
 
-CORS(app)
+
+CORS(app, origins=[API_BASE_URL])
 
 @app.route('/')
 def hello():
-    return "Hello"
+    return "Hello, Backend connected"
 
 @app.route('/api/stocks')
 def home():

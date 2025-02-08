@@ -27,12 +27,14 @@ export default defineComponent({
   },
 
   setup() {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+    console.log("HERE", import.meta.env)
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    
     console.log("Backend URL:", backendUrl);
 
     const fetchStocks = async () => {
       try {
-        const response = await axios.get(`${backendUrl}/api/stocks`);
+        const response = await axios.get(`${backendUrl}`);
         console.log("API Response:", response.data);
       } catch (error) {
         console.error("Error fetching data from /api/stocks:", error);
