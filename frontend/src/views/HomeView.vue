@@ -37,7 +37,6 @@ export default defineComponent({
         const response = await axios.get(`${backendUrl}`);
         console.log("API Response:", response.data);
       } catch (error) {
-        console.error("Error fetching data from /api/stocks:", error);
       }
     };
 

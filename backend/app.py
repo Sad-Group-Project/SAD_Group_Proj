@@ -3,12 +3,10 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
-
 app = Flask(__name__)
 
 app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL")
-API_BASE_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+API_BASE_URL = os.getenv("FRONTEND_URL")
 PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
 
 
