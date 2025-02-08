@@ -13,7 +13,7 @@ print("PRODUCTION_FRONTEND_URL:", os.getenv("PRODUCTION_FRONTEND_URL"))
 origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
 
 
-CORS(app, origins=origins)
+CORS(app)
 
 @app.route('/')
 def hello():
