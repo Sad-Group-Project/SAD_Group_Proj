@@ -9,10 +9,11 @@ app = Flask(__name__)
 
 app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL")
 API_BASE_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
 
 
 
-CORS(app, origins=[API_BASE_URL])
+CORS(app, origins=[API_BASE_URL, PRODUCTION_FRONTEND_URL])
 
 @app.route('/')
 def hello():
