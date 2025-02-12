@@ -36,7 +36,7 @@ def popular_stocks():
             "current_price": stock.get("regularMarketPrice"),
             "change": stock.get("regularMarketChange"),
             "percent_change": stock.get("regularMarketChangePercent"),
-            "mini_chart_data": get_mini_chart(stock.get("symbol"))
+            # "mini_chart_data": get_mini_chart(stock.get("symbol"))
         }
         stocks.append(stock_data)
 
