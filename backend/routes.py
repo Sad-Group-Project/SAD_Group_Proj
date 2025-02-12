@@ -16,7 +16,7 @@ def get_mini_chart(symbol):
 
     return {"timestamps": timestamps, "prices": prices}
 
-@api.route('/popular_stocks', methods=['GET'])
+@api.route('/popular_stocks', methods=['GET'], strict_slashes=False)
 def popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
     screener = Screener()
@@ -41,3 +41,11 @@ def popular_stocks():
         stocks.append(stock_data)
 
     return jsonify(stocks)
+
+@api.route('/debug')
+def debug():
+    return jsonify({
+        'url': request.url,
+        'scheme': request.scheme,
+        'headers': dict(request.headers)
+    })
