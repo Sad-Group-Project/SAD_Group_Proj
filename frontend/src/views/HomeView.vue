@@ -34,7 +34,7 @@ export default defineComponent({
 
     const fetchStocks = async () => {
       try {
-        const response = await axios.get(`${backendUrl}`);
+        const response = await axios.get(`${backendUrl}/api/popular_stocks`);
         console.log("API Response:", response.data);
       } catch (error) {
       }

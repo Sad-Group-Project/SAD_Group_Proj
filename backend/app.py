@@ -2,7 +2,8 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
+from flask_migrate import Migrate
+from routes import api
 
 app = Flask(__name__)
 
@@ -13,18 +14,20 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+from models import User
+
 
 origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
-
 CORS(app, origins=origins)
+
+app.register_blueprint(api, url_prefix="/api")
 
 @app.route('/')
 def hello():
     return "hello"
 
-@app.route('/api/stocks')
-def home():
-    return "Hello, Flask!"
 
 @app.route('/debug_db')
 def debug_db():
