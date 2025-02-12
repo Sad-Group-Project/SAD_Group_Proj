@@ -49,3 +49,7 @@ def debug():
         'scheme': request.scheme,
         'headers': dict(request.headers)
     })
+
+@api.route('/test')
+def test():
+    return "HELLO"
