@@ -17,8 +17,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 init_db(app)
 migrate = Migrate(app, db)
 
-from models import User
-
 
 origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
 CORS(app, origins=origins)
