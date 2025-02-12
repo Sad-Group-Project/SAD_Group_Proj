@@ -4,8 +4,10 @@ import os
 from flask_migrate import Migrate
 from routes import api
 from db import db, init_db
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
