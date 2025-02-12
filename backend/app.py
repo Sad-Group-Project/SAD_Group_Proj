@@ -1,9 +1,9 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from routes import api
+from db import db, init_db
 
 app = Flask(__name__)
 
@@ -13,7 +13,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+
+init_db(app)
 migrate = Migrate(app, db)
 
 from models import User
