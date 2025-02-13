@@ -13,9 +13,6 @@ origins_str = os.environ.get("ALLOWED_ORIGINS")
 if origins_str:
     origins = origins_str.split(",")
     CORS(app, origins=origins)
-elif os.environ.get("FLASK_ENV") == "development":
-    CORS(app)
-    print("CORS configured to allow all origins (DEVELOPMENT ONLY - INSECURE FOR PRODUCTION)")
 else:
     raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 
