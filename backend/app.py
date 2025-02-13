@@ -8,6 +8,17 @@ from sqlalchemy import text
 
 app = Flask(__name__)
 
+origins_str = os.environ.get("ALLOWED_ORIGINS")
+if origins_str:
+    origins = origins_str.split(",")
+    CORS(app, origins=origins)
+else:
+    if os.environ.get("FLASK_ENV") == "development":
+        CORS(app)
+        print("CORS configured to allow all origins (DEVELOPMENT ONLY - INSECURE FOR PRODUCTION)")
+    else:
+        raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
+
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
