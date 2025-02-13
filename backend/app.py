@@ -13,8 +13,6 @@ origins = origins_str.split(",")
 CORS(app, origins=origins)
 
 
-FRONTEND_URL = os.getenv("FRONTEND_URL")
-PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -22,10 +20,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 init_db(app)
 migrate = Migrate(app, db)
-
-
-origins = [url for url in [FRONTEND_URL, PRODUCTION_FRONTEND_URL] if url]
-CORS(app, origins=origins)
 
 app.register_blueprint(api, url_prefix="/api")
 
