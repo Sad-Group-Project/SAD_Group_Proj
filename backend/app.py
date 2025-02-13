@@ -4,6 +4,7 @@ import os
 from flask_migrate import Migrate
 from routes import api
 from db import db, init_db
+from sqlalchemy import text
 
 app = Flask(__name__)
 

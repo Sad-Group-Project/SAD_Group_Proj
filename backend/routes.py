@@ -16,7 +16,7 @@ def get_mini_chart(symbol):
 
     return {"timestamps": timestamps, "prices": prices}
 
-@api.route('/popular_stocks', methods=['GET'], strict_slashes=False)
+@api.route('/popular_stocks', methods=['GET'])
 def popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
     screener = Screener()
