@@ -9,11 +9,9 @@ from sqlalchemy import text
 app = Flask(__name__)
 
 origins_str = os.environ.get("ALLOWED_ORIGINS")
-if origins_str:
-    origins = origins_str.split(",")
-    CORS(app, origins=origins)
-else:
-    raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
+origins = origins_str.split(",")
+CORS(app, origins=origins)
+
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL")
