@@ -2,19 +2,19 @@ from flask import Blueprint, jsonify, request
 from yahooquery import Screener, Ticker
 api = Blueprint('api', __name__)
 
-def get_mini_chart(symbol):
-    """Fetches intraday stock prices for a small chart visualization."""
-    stock = Ticker(symbol)
-    hist = stock.history(period="1d", interval="1h")
+# def get_mini_chart(symbol):
+#     """Fetches intraday stock prices for a small chart visualization."""
+#     stock = Ticker(symbol)
+#     hist = stock.history(period="1d", interval="1h")
 
-    if hist.empty:
-        return {"timestamps": [], "prices": []}
+#     if hist.empty:
+#         return {"timestamps": [], "prices": []}
 
-    hist.reset_index(inplace=True)
-    timestamps = hist["date"].astype(str).tolist()
-    prices = hist["close"].tolist()
+#     hist.reset_index(inplace=True)
+#     timestamps = hist["date"].astype(str).tolist()
+#     prices = hist["close"].tolist()
 
-    return {"timestamps": timestamps, "prices": prices}
+#     return {"timestamps": timestamps, "prices": prices}
 
 @api.route('/popular_stocks', methods=['GET'])
 def popular_stocks():
@@ -36,7 +36,7 @@ def popular_stocks():
             "current_price": stock.get("regularMarketPrice"),
             "change": stock.get("regularMarketChange"),
             "percent_change": stock.get("regularMarketChangePercent"),
-            "mini_chart_data": get_mini_chart(stock.get("symbol"))
+            # "mini_chart_data": get_mini_chart(stock.get("symbol"))
         }
         stocks.append(stock_data)
 
