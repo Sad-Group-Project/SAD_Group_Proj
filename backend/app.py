@@ -9,8 +9,15 @@ from sqlalchemy import text
 app = Flask(__name__)
 
 origins_str = os.environ.get("ALLOWED_ORIGINS")
-origins = origins_str.split(",")
-CORS(app, origins=origins)
+
+if origins_str:
+    origins = origins_str.split(",")
+    CORS(app, origins=origins)
+elif os.environ.get("FLASK_ENV") == "development":
+    CORS(app)
+    print("CORS configured to allow all origins (DEVELOPMENT ONLY - INSECURE FOR PRODUCTION)")
+else:
+    raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
