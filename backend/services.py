@@ -55,3 +55,42 @@ def get_popular_stocks():
         stocks.append(stock_data)
 
     return jsonify(stocks)
+
+def get_stocks(user_search):
+
+    stock_symbol = user_search.upper()
+    searchedStock = Ticker(user_search)
+    results = searchedStock.financial_data
+    stock_info = results.get(stock_symbol, {})
+
+    history_data = searchedStock.history(period="1mo")
+
+    history = []
+    stock_price = stock_info.get("currentPrice")
+    price_24h_ago = None
+
+    if isinstance(history_data, pd.DataFrame) and not history_data.empty:
+        history_data = history_data.reset_index()
+
+        if len(history_data) > 1:
+            price_24h_ago = history_data.iloc[-2]["close"]
+
+        history = [
+            {"date": row["date"].strftime("%Y-%m-%d"), "price": row["close"]}
+            for _, row in history_data.iterrows()
+        ]
+
+    price_change = stock_price - price_24h_ago
+    price_change_percentage = (price_change / price_24h_ago) * 100
+
+    stock_data = {
+        'symbol': stock_symbol,
+        'price': stock_price,
+        'recommendation': stock_info.get("recommendationKey"),
+        'change': price_change_percentage,
+        'history': history
+    }
+
+    return jsonify(stock_data)
+
+
