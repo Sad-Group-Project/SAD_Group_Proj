@@ -1,78 +1,145 @@
 <template>
-  <div :data-theme="theme" class="full-screen offset-top">
-    <header style="display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 10px;">
-      <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-start;">
-        <button class="login-button" @click="openLoginModal">Login</button>
-        
-      <button class="theme-toggle" @click="toggleTheme">Switch Theme</button>
+  <div :data-theme="theme" class="min-vh-100 d-flex flex-column">
+    <!-- Header -->
+    <header class="py-3 border-bottom">
+      <div class="container">
+        <div class="d-flex justify-content-end mb-2">
+          <button class="btn btn-outline-primary me-2" @click="openLoginModal">Login</button>
+          <button class="btn btn-outline-secondary" @click="toggleTheme">Switch Theme</button>
+        </div>
+        <div class="text-center">
+          <h1 class="my-0">STOCK STALKER</h1>
+        </div>
       </div>
-      <h1 style="text-align: center; width: 100%; margin-top: 10px;">STOCK STALKER</h1>
     </header>
 
-    
-
-    <div class="container full-screen reduced-size">
-      <div class="search-wrapper" style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
-        <div class="input-box" style="display: flex; flex-direction: column; align-items: center; margin-top: 10px;">
-          <input type="text" v-model="inputStockSymbol" placeholder="Enter stock symbol" />
-          <input type="text" v-model="discordUsername" placeholder="Enter Discord username" />
-          
-          <input type="number" v-model="priceBought" placeholder="Enter price bought" />
-          
-          <input type="number" v-model="sellingPrice" placeholder="Enter selling price" />
-          
-          <input type="number" v-model="shareAmount" placeholder="Enter shares amount" />
-        <button @click="sendDataToBackend">Send</button>
-        </div>
-        <div class="search-bar centered">
-          <input
-            type="text"
-            v-model="stockSymbol"
-            placeholder="Search for a stock symbol (e.g., AAPL, TSLA)..."
-          />
-          <button @click="addStock">Add Stock</button>
+    <!-- Main Content -->
+    <main class="container flex-grow-1 my-4">
+      <!-- Search Bar -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="input-group">
+            <input
+              type="text"
+              v-model="stockSymbol"
+              class="form-control"
+              placeholder="Search for a stock symbol (e.g., AAPL, TSLA)..."
+            />
+            <button class="btn btn-success" @click="addStock">Add Stock</button>
+          </div>
         </div>
       </div>
 
-      <div class="content-wrapper">
-        <div class="dashboard">
-          <h2>Stock Dashboard</h2>
-          <table>
-            <thead>
-              <tr>
-                <th :style="{ color: themes[theme].text }">Symbol</th>
-                <th :style="{ color: themes[theme].text }">Price</th>
-                <th :style="{ color: themes[theme].text }">Change (%)</th>
-                <th :style="{ color: themes[theme].text }">Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(stock, index) in stockDataList" :key="stock.symbol">
-                <td :style="{ color: stockColors[index % stockColors.length] }">{{ stock.symbol }}</td>
-                <td :style="{ color: stock.change > 0 ? 'green' : 'red' }">
-                  ${{ stock.price.toFixed(2) }}
-                </td>
-                <td :class="{'positive': stock.change > 0, 'negative': stock.change < 0}">
-                  {{ stock.change.toFixed(2) }}%
-                </td>
-                <td :style="{ color: stock.recommendation === 'Buy' ? 'green' : 'red' }">
-                  {{ stock.recommendation }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Discord Input & Stock Dashboard -->
+      <div class="row mb-4">
+        <!-- Discord & Data Input Column -->
+        <div class="col-md-4 mb-3 mb-md-0">
+          <div class="card">
+            <div class="card-body">
+              <div class="mb-3">
+                <input
+                  type="text"
+                  v-model="discordUsername"
+                  class="form-control"
+                  placeholder="Enter Discord username"
+                />
+              </div>
+              <!-- Additional Data Inputs -->
+              <div class="mb-3">
+                <input
+                  type="text"
+                  v-model="inputStockSymbol"
+                  class="form-control"
+                  placeholder="Enter stock symbol"
+                />
+              </div>
+              <div class="mb-3">
+                <input
+                  type="number"
+                  v-model="priceBought"
+                  class="form-control"
+                  placeholder="Enter price bought"
+                />
+              </div>
+              <div class="mb-3">
+                <input
+                  type="number"
+                  v-model="sellingPrice"
+                  class="form-control"
+                  placeholder="Enter selling price"
+                />
+              </div>
+              <div class="mb-3">
+                <input
+                  type="number"
+                  v-model="shareAmount"
+                  class="form-control"
+                  placeholder="Enter shares amount"
+                />
+              </div>
+              <button class="btn btn-primary w-100" @click="sendDataToBackend">
+                Send
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="chart-container">
-          <canvas ref="chartCanvas"></canvas>
+        <!-- Stock Dashboard Column -->
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header">
+              Stock Dashboard
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th :style="{ color: themes[theme].text }">Symbol</th>
+                    <th :style="{ color: themes[theme].text }">Price</th>
+                    <th :style="{ color: themes[theme].text }">Change (%)</th>
+                    <th :style="{ color: themes[theme].text }">Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(stock, index) in stockDataList" :key="stock.symbol">
+                    <td :style="{ color: stockColors[index % stockColors.length] }">{{ stock.symbol }}</td>
+                    <td :style="{ color: stock.change > 0 ? 'green' : 'red' }">
+                      ${{ stock.price.toFixed(2) }}
+                    </td>
+                    <td :class="{'text-success': stock.change > 0, 'text-danger': stock.change < 0}">
+                      {{ stock.change.toFixed(2) }}%
+                    </td>
+                    <td :style="{ color: stock.recommendation === 'Buy' ? 'green' : 'red' }">
+                      {{ stock.recommendation }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <footer style="text-align: center;">
-      <p>STOCK STALKER © 2025</p>
+      <!-- Chart Section -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <canvas ref="chartCanvas" class="w-100"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light py-3">
+      <div class="container text-center">
+        <p class="mb-0">STOCK STALKER © 2025</p>
+      </div>
     </footer>
   </div>
 </template>
+
 
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue';
