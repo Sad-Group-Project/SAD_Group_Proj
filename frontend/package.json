@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
+    "start": "NODE_ENV=production npm run serve || npm run dev",
     "lint": "eslint --ext .js,.ts,.vue src"
   },
   "dependencies": {
