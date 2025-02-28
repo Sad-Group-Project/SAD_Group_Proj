@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview --host",
+    "serve": "vite preview --host 0.0.0.0 --port 8080",
     "start": "npm run serve",
     "lint": "eslint --ext .js,.ts,.vue src"
   },
