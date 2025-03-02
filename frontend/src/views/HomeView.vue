@@ -1,6 +1,5 @@
 <template>
   <div :data-theme="theme" class="min-vh-100 d-flex flex-column">
-    <!-- Header -->
     <header class="py-3 border-bottom">
       <div class="container">
         <div class="d-flex justify-content-end mb-2">
@@ -13,9 +12,7 @@
       </div>
     </header>
 
-    <!-- Main Content -->
     <main class="container flex-grow-1 my-4">
-      <!-- Search Bar -->
       <div class="row mb-4">
         <div class="col-12">
           <div class="input-group">
@@ -30,9 +27,7 @@
         </div>
       </div>
 
-      <!-- Discord Input & Stock Dashboard -->
       <div class="row mb-4">
-        <!-- Discord & Data Input Column -->
         <div class="col-md-4 mb-3 mb-md-0">
           <div class="card">
             <div class="card-body">
@@ -44,7 +39,6 @@
                   placeholder="Enter Discord username"
                 />
               </div>
-              <!-- Additional Data Inputs -->
               <div class="mb-3">
                 <input
                   type="text"
@@ -83,7 +77,6 @@
             </div>
           </div>
         </div>
-        <!-- Stock Dashboard Column -->
         <div class="col-md-8">
           <div class="card">
             <div class="card-header">
@@ -119,7 +112,6 @@
         </div>
       </div>
 
-      <!-- Chart Section -->
       <div class="row">
         <div class="col-12">
           <div class="card">
@@ -131,7 +123,6 @@
       </div>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-light py-3">
       <div class="container text-center">
         <p class="mb-0">STOCK STALKER © 2025</p>
@@ -144,7 +135,6 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue';
 import Chart from 'chart.js/auto';
-import { faker } from '@faker-js/faker';
 
 const themes = {
   light: { bg: '#ffffff', text: '#000000' },
@@ -182,13 +172,6 @@ const applyThemeStyles = () => {
 
 const openLoginModal = () => {
   alert("Login functionality is not implemented yet.");
-};
-
-const generateStockHistory = () => {
-  return Array.from({ length: 30 }, (_, i) => ({
-    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    price: parseFloat(faker.finance.amount(50, 200, 2))
-  }));
 };
 
 const addStock = async () => {
