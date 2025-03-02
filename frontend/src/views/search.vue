@@ -10,7 +10,7 @@
         />
       </div>
   
-      <h2>Search Results for "{{ searchQuery }}"</h2>
+      <h2 class="text-center">Search Results for "{{ searchQuery }}"</h2>
   
       <div v-if="loading" class="text-center my-4">
         <div class="spinner-border" role="status">
@@ -45,7 +45,7 @@
       </div>
   
       <div v-else-if="!loading && !error">
-        <p>No results found.</p>
+        <p class="text-center">No results found.</p>
       </div>
     </div>
   </template>
