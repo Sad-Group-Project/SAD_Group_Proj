@@ -5,12 +5,12 @@ import SearchPageView from '../views/search.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
-    path: '/',
+    path: '/test',
     name: 'home',
     component: HomeView
   },
   {
-    path: '/test',
+    path: '/',
     name: 'homepage',
     component: HomePageView
   },
