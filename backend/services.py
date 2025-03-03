@@ -19,12 +19,14 @@ def get_popular_stocks():
 
     close_prices = history[['close']].reset_index()
 
+    close_prices['date'] = pd.to_datetime(close_prices['date'], utc=True).dt.tz_localize(None)
+
     stock_data = []
 
     for symbol in symbols:
         stock_history = close_prices[close_prices['symbol'] == symbol]
 
-        labels = stock_history['date'].astype(str).tolist()
+        labels = stock_history['date'].dt.strftime('%Y-%m-%d').tolist()
         values = stock_history['close'].tolist()
 
         stock_data.append({
@@ -37,7 +39,6 @@ def get_popular_stocks():
         })
 
     return jsonify(stock_data)
-
 
 
 def get_stocks(user_search):
@@ -79,21 +80,44 @@ def get_stocks(user_search):
 
 def get_search(user_search):
     results = search(user_search)
+    symbols = [value.get('symbol', 'Unknown') for value in results.get('quotes', [])]
+
+    if not symbols:
+        return jsonify({'quotes': []}) 
+
+    stock_data = Ticker(symbols)
+
+    price_data = stock_data.price
+    history_data = stock_data.history(period="1d", interval="1h")
 
     search_data = []
 
     for value in results.get('quotes', []):
+        symbol = value.get('symbol', 'Unknown')
+
+        price_info = price_data.get(symbol, {})
+        stock_price = price_info.get("regularMarketPrice", 0.00)
+        previous_close = price_info.get("regularMarketPreviousClose", stock_price)
+
+        price_change_percent = round(((stock_price - previous_close) / previous_close) * 100, 2) if previous_close else 0.00
+
+        chart_data = []
+        if isinstance(history_data, pd.DataFrame) and not history_data.empty and symbol in history_data.index:
+            stock_history = history_data.xs(symbol, level=0)
+            chart_data = stock_history["close"].dropna().tolist()
+
         temp = {
-            'symbol': value.get('symbol', 'Unknown'),
-            'longname': value.get('longname', 'Unknown'),
-            'shortname': value.get('shortname', 'Unkown'),
-            'exchange': value.get('exchange', 'Unkown'),
-            "exchDisp": value.get('exchDisp', 'Unkown'),
-            "industry": value.get('industry', 'Unknown'),
+            "symbol": symbol,
+            "longName": value.get("longname", "Unknown"),
+            "shortName": value.get("shortname", "Unknown"),
+            "exchange": value.get("exchange", "Unknown"),
+            "exchDisp": value.get("exchDisp", "Unknown"),
+            "industry": value.get("industry", "Unknown"),
+            "regularMarketPrice": stock_price,
+            "regularMarketChangePercent": price_change_percent,
+            "chartData": chart_data if chart_data else [0]
         }
+
         search_data.append(temp)
-    # return results
+
     return jsonify({'quotes': search_data})
-
-
-
