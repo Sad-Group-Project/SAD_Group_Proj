@@ -5,6 +5,12 @@
         <button class="login-button" @click="openLoginModal">Login</button>
         
       <button class="theme-toggle" @click="toggleTheme">Switch Theme</button>
+      <RouterLink to="/profile">
+        <button>Route to Profile</button>
+      </RouterLink>
+      <RouterLink to="/popular">
+        <button>Route to Popular Stocks</button>
+      </RouterLink>
       </div>
       <h1 style="text-align: center; width: 100%; margin-top: 10px;">STOCK STALKER</h1>
     </header>
