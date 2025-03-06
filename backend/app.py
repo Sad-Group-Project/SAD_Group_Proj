@@ -19,6 +19,10 @@ if origins_str:
 else:
     raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
+
 oauth.init_app(app)
 
 google = oauth.register(
@@ -32,14 +36,12 @@ google = oauth.register(
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
 )
 
-
 import extensions
 extensions.google = google
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 init_db(app)
 migrate = Migrate(app, db)
