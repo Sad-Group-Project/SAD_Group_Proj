@@ -4,23 +4,42 @@ import os
 from flask_migrate import Migrate
 from routes import api
 from db import db, init_db
+from extensions import oauth
 from sqlalchemy import text
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
 origins_str = os.environ.get("ALLOWED_ORIGINS")
-
 if origins_str:
     origins = origins_str.split(",")
-    CORS(app, origins=origins)
+    CORS(app, origins=origins, supports_credentials=True)
 else:
     raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 
+oauth.init_app(app)
+
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    authorize_url="https://accounts.google.com/o/oauth2/auth",
+    access_token_url="https://oauth2.googleapis.com/token",
+    api_base_url="https://www.googleapis.com/oauth2/v2/",
+    client_kwargs={"scope": "openid email profile"},
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+)
+
+
+import extensions
+extensions.google = google
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 init_db(app)
 migrate = Migrate(app, db)
@@ -29,8 +48,7 @@ app.register_blueprint(api, url_prefix="/api")
 
 @app.route('/')
 def hello():
-    return "hello"
-
+    return "Hello, world!"
 
 @app.route('/debug_db')
 def debug_db():

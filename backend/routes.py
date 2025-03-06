@@ -1,7 +1,19 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, redirect, session
 from services import get_popular_stocks, get_stocks
+import os
+import jwt
+from db import db
+from models import User
+from dotenv import load_dotenv
+import extensions
+
+load_dotenv()
 
 api = Blueprint('api', __name__)
+
+SECRET_KEY = os.environ.get("SECRET_KEY")
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
+BACKEND_URL = os.environ.get("BACKEND_URL")
 
 @api.route('/popular_stocks', methods=['GET'])
 def popular_stocks():
@@ -19,3 +31,39 @@ def debug():
         'scheme': request.scheme,
         'headers': dict(request.headers)
     })
+
+@api.route('/google/login')
+def google_login():
+    return extensions.google.authorize_redirect(f"{BACKEND_URL}/api/google/callback")
+
+@api.route('/google/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"message": "Logged out"}), 200
+
+@api.route('/google/callback')
+def google_callback():
+    token = extensions.google.authorize_access_token()
+    user_info = extensions.google.get("https://www.googleapis.com/oauth2/v2/userinfo").json()
+
+    if not user_info:
+        return jsonify({"error": "Failed to retrieve user information"}), 400
+
+    existing_user = User.query.filter_by(email=user_info["email"]).first()
+
+    if not existing_user:
+        new_user = User(
+            google_id=user_info["id"],
+            name=user_info["name"],
+            email=user_info["email"],
+            profile_picture=user_info["picture"]
+        )
+        db.session.add(new_user)
+    
+    db.session.commit()
+
+    user_token = jwt.encode(
+        {"email": user_info["email"]}, SECRET_KEY, algorithm="HS256"
+    )
+
+    return redirect(f"{FRONTEND_URL}/?token={user_token}")

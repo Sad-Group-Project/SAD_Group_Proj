@@ -73,10 +73,6 @@
         </div>
       </div>
     </div>
-
-    <footer style="text-align: center;">
-      <p>STOCK STALKER © 2025</p>
-    </footer>
   </div>
 </template>
 

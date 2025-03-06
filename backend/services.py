@@ -92,5 +92,3 @@ def get_stocks(user_search):
     }
 
     return jsonify(stock_data)
-
-
