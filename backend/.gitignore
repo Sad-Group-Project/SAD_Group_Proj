@@ -9,8 +9,7 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Ignore migration environment files
-migrations/env.py
+
 
 # Ignore logs and temporary files
 *.log
