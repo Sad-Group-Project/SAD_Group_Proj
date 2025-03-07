@@ -72,3 +72,8 @@ def google_callback():
     )
 
     return redirect(f"{FRONTEND_URL}/?token={user_token}")
+
+@api.route('/debug_redirect')
+def debug_redirect():
+    redirect_uri = os.getenv("REDIRECT_URI", "MISSING")
+    return jsonify({"redirect_uri": redirect_uri})
