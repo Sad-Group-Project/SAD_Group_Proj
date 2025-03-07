@@ -62,8 +62,9 @@ export default{
           credentials: "include",
         });
         if(respone.ok){
-          localStorage.removeItem("user");
+          localStorage.removeItem("token");
           loginRouter.push("/login");
+          window.location.reload();
         }
         else{
           console.error("Logout failed");

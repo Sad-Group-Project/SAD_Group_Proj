@@ -50,11 +50,12 @@ if(window.location.search.includes("token=")){
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
 
-  if(token){
-    localStorage.setItem("token", token);
-    window.history.replaceState({}, document.title, window.location.pathname);
-    window.location.href = "/";
+  if (token) {
+    sessionStorage.setItem("token", token);
+    window.history.replaceState({}, document.title, "/");
+    window.location.reload();
   }
+
 }
 
 export default router
