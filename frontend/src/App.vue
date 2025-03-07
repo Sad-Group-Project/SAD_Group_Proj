@@ -148,7 +148,7 @@ export default{
   background-color: #2c3e50;
   color: #ecf0f1;
   text-align: center;
-  padding: 10px 0;
+  padding: 5px 0;
   width: 100%;
   margin-top: auto;
   border-top: 2px solid #e74c3c;

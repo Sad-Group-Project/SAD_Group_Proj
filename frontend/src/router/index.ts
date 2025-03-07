@@ -51,9 +51,9 @@ if(window.location.search.includes("token=")){
   const token = urlParams.get("token");
 
   if (token) {
-    sessionStorage.setItem("token", token);
+    localStorage.setItem("token", token);
     window.history.replaceState({}, document.title, "/");
-    window.location.reload();
+    window.location.href = "/";
   }
 
 }
