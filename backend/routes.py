@@ -33,7 +33,7 @@ def debug():
 
 @api.route('/google/login')
 def google_login():
-    redirect_uri = url_for('api.google_callback', _external=True)
+    redirect_uri = os.getenv("REDIRECT_URI")
     return extensions.google.authorize_redirect(redirect_uri)
 
 @api.route('/google/logout', methods=['POST'])
