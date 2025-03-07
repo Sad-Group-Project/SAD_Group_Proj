@@ -53,6 +53,7 @@ if(window.location.search.includes("token=")){
   if(token){
     localStorage.setItem("token", token);
     window.history.replaceState({}, document.title, window.location.pathname);
+    window.location.href = "/";
   }
 }
 
