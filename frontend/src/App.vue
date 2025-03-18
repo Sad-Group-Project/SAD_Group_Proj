@@ -76,7 +76,6 @@ export default{
     };
 
     const isLoginPage = computed(() => router.path === "/login");
-    console.log(isLoginPage)
 
     return{
       signOut,
