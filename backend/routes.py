@@ -98,9 +98,7 @@ def token_required(f):
         try:
             token = token.split(" ")[1]
             decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            
-            print("Decoded Token:", decoded)
-            
+                        
             if "user_id" not in decoded:
                 return jsonify({"message": "Invalid token: 'user_id' missing"}), 401
 
