@@ -1,14 +1,20 @@
 from flask import Blueprint, jsonify, request, redirect, session, url_for
 from services import get_popular_stocks, get_stocks, get_save_stock
+from app import get_google_provider_cfg, client, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 import os
+import json
 from functools import wraps
 import jwt
+import requests
+import datetime
 from db import db
 from models import User
-from dotenv import load_dotenv
-import extensions
+from flask_login import (
+    login_user,
+    login_required,
+    logout_user,
+)
 
-load_dotenv()
 
 api = Blueprint('api', __name__)
 
@@ -41,76 +47,101 @@ def save_stock():
     stock_symbol = data.get('symbol')
     return get_save_stock(stock_symbol)
 
-@api.route('/google/login')
-def google_login():
-    redirect_uri = os.getenv("REDIRECT_URI")
-    response = extensions.google.authorize_redirect(redirect_uri)
-    return response
+@api.route('google/login', methods=['GET', 'POST'])
+def login():
+    google_provider_cfg = get_google_provider_cfg()
+    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
 
-@api.route('/google/logout', methods=['POST'])
-def logout():
-    session.pop("google_id", None)
-    session.modified = True
-    return jsonify({"message": "Logged out"}), 200
+    request_uri = client.prepare_request_uri(
+        authorization_endpoint,
+        redirect_uri=os.environ.get("REDIRECT_URI"),
+        scope=["openid", "email", "profile"]
+    )
+    return redirect(request_uri)
 
-@api.route('/google/callback')
-def google_callback():
-    try:
-        token = extensions.google.authorize_access_token()
-    except Exception as e:
-        print("Error during token exchange:", e)
-        return jsonify({"error": str(e)}), 400
+@api.route('google/callback')
+def callback():
+    code = request.args.get("code")
 
-    user_info = extensions.google.get("https://www.googleapis.com/oauth2/v2/userinfo").json()
-    if not user_info:
-        return jsonify({"error": "Failed to retrieve user information"}), 400
+    google_provider_cfg = get_google_provider_cfg()
+    token_endpoint = google_provider_cfg["token_endpoint"]
 
-    existing_user = User.query.filter_by(email=user_info["email"]).first()
-    if not existing_user:
-        new_user = User(
-            google_id=user_info["id"],
-            name=user_info["name"],
-            email=user_info["email"],
-            profile_picture=user_info["picture"]
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        user_id = new_user.id
-    else:
-        user_id = existing_user.id
-
-    session['google_id'] = user_info["id"]
-    session.modified = True
-
-    user_token = jwt.encode(
-        {"user_id": user_id, "email": user_info["email"]}, SECRET_KEY, algorithm="HS256"
+    token_url, headers, body = client.prepare_token_request(
+        token_endpoint,
+        authorization_response=request.url,
+        redirect_url=request.base_url,
+        code=code
+    )
+    token_response = requests.post(
+        token_url,
+        headers=headers,
+        data=body,
+        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
     )
 
-    return redirect(f"{FRONTEND_URL}/?token={user_token}")
+    client.parse_request_body_response(json.dumps(token_response.json()))
+
+    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+    uri, headers, body = client.add_token(userinfo_endpoint)
+    userinfo_response = requests.get(uri, headers=headers, data=body)
+
+    if userinfo_response.json().get("email_verified"):
+        unique_id = userinfo_response.json()["sub"]
+        users_email = userinfo_response.json()["email"]
+        picture = userinfo_response.json()["picture"]
+        users_name = userinfo_response.json()["given_name"]
+    else:
+        return "USER EMAIL NOT AVAILABLE", 400
+    
+    user = User.query.filter_by(google_id=unique_id).first()
+
+    if not user:
+        user = User(google_id=unique_id, name=users_name, email=users_email, profile_picture=picture)
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+
+    token_payload = {
+        "user_id": user.id,
+        "google_id": user.google_id,
+        "email": user.email,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    }
+    token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+
+    frontend_url = os.getenv("FRONTEND_URL")
+    return redirect(f"{frontend_url}/?token={token}")
+
+
+@api.route("google/logout", methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({"message": "Logged out successfully"}), 200
+
 
 def token_required(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated_function(*args, **kwargs):
         token = request.headers.get("Authorization")
         if not token:
-            return jsonify({"message": "Token is missing!"}), 401
-
+            return jsonify({"error": "Token is missing!"}), 401
+        
         try:
-            token = token.split(" ")[1]
-            decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-                        
-            if "user_id" not in decoded:
-                return jsonify({"message": "Invalid token: 'user_id' missing"}), 401
-
-            return f(decoded["user_id"], *args, **kwargs)
+            token = token.split("Bearer ")[1]
+            secret_key = os.getenv("SECRET_KEY")
+            decoded_token = jwt.decode(token, secret_key, algorithms=["HS256"])
+            return f(decoded_token, *args, **kwargs)
         except jwt.ExpiredSignatureError:
-            return jsonify({"message": "Token has expired!"}), 401
+            return jsonify({"error": "Token has expired!"}), 401
         except jwt.InvalidTokenError:
-            return jsonify({"message": "Invalid token!"}), 401
+            return jsonify({"error": "Invalid token!"}), 401
 
-    return decorated
+    return decorated_function
 
-@api.route("/auth/verify", methods=["GET"])
-@token_required 
-def verify_token(user_id):
-    return jsonify({"message": "Token is valid", "user_id": user_id}), 200
+@api.route('/auth/verify', methods=['GET'])
+@token_required
+def verify_token(decoded_token):
+    return jsonify({"authenticated": True, "user": decoded_token}), 200
+

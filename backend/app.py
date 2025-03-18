@@ -1,16 +1,19 @@
-from flask import Flask, jsonify
+from flask import Flask, redirect, request, url_for
 from flask_cors import CORS
 import os
 from flask_migrate import Migrate
-from routes import api
 from db import db, init_db
-from extensions import oauth
-from sqlalchemy import text
-from dotenv import load_dotenv
+from oauthlib.oauth2 import WebApplicationClient
+from flask_login import LoginManager
+from models import User
+import requests
 
-load_dotenv()
 
 app = Flask(__name__)
+app.secret_key=os.environ.get("SECRET_KEY")
+
+if os.environ.get("FLASK_ENV") == "development":
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 origins_str = os.environ.get("ALLOWED_ORIGINS")
 if origins_str:
@@ -19,47 +22,37 @@ if origins_str:
 else:
     raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-oauth.init_app(app)
+login_manager=LoginManager()
+login_manager.init_app(app)
 
-google = oauth.register(
-    name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    authorize_url="https://accounts.google.com/o/oauth2/auth",
-    access_token_url="https://oauth2.googleapis.com/token",
-    api_base_url="https://www.googleapis.com/oauth2/v2/",
-    client_kwargs={"scope": "openid email profile"},
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-)
+GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET")
+GOOGLE_DISCOVERY_URL="https://accounts.google.com/.well-known/openid-configuration"
 
-import extensions
-extensions.google = google
+client=WebApplicationClient(GOOGLE_CLIENT_ID)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+
+def get_google_provider_cfg():
+    return requests.get(GOOGLE_DISCOVERY_URL).json()
 
 init_db(app)
+
 migrate = Migrate(app, db)
+
+from routes import api
+
 
 app.register_blueprint(api, url_prefix="/api")
 
 @app.route('/')
 def hello():
     return "Hello, world!"
-
-@app.route('/debug_db')
-def debug_db():
-    try:
-        with db.engine.connect() as connection:
-            result = connection.execute(text("SELECT 'Database Connection Successful'")).fetchone()
-            return jsonify({"message": result[0]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=8080, ssl_context=None)

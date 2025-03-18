@@ -1,7 +1,9 @@
 from db import db
 from datetime import datetime
+from flask_login import UserMixin
 
-class User(db.Model):
+
+class User(db.Model, UserMixin):
     __tablename__='users'
     id = db.Column(db.Integer, primary_key=True)
     google_id = db.Column(db.String(50), unique=True, nullable=False)
@@ -9,6 +11,9 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=True)
     profile_picture = db.Column(db.String(300), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    def get_id(self):
+        return str(self.id)
 
 class SavedStocks(db.Model):
     __tablename__='saved_stocks'
