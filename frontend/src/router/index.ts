@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import PopularStocks from '@/views/PopularStocks.vue'
@@ -27,21 +28,36 @@ const routes: Array<RouteRecordRaw> = [
   },
 ]
 
+import axios from "axios";
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token');
 
-  if(token){
-    next();
-  }
-  else if(to.path !== '/login'){
-    next('/login');
-  }
-  else{
+  if (token) {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    try {
+      await axios.get(`${backendUrl}/api/auth/verify`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      next();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.log("Token invalid or expired:", error.response?.data?.message);
+      } else {
+        console.log("An unexpected error occurred:", error);
+      }
+      localStorage.removeItem("token");
+      next("/login");
+    }
+  } else if (to.path !== "/login") {
+    next("/login");
+  } else {
     next();
   }
 });

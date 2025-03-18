@@ -1,6 +1,8 @@
 from yahooquery import Screener, Ticker
-from flask import jsonify
+from flask import jsonify, request, session
 import pandas as pd
+from models import User, SavedStocks
+from db import db
 
 def get_popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
@@ -92,3 +94,33 @@ def get_stocks(user_search):
     }
 
     return jsonify(stock_data)
+
+def get_save_stock(symbol):
+    google_id = session.get('google_id')
+
+    if not google_id:
+        return jsonify({'success': False, 'error': 'User not logged in'}), 401
+    
+    user = User.query.filter_by(google_id=google_id).first()
+    if not user:
+        return jsonify({'success': False, 'error': "User not found"}), 404
+    
+    existing_stock = SavedStocks.query.filter_by(google_id=google_id, symbol=symbol).first()
+    if existing_stock:
+        return jsonify({'success': False, 'error': 'Stock is already added'}), 409
+    
+    stock = Ticker(symbol)
+    data = stock.price.get(symbol, {})
+    
+    new_stock = SavedStocks(
+        google_id = google_id,
+        symbol = symbol,
+        company_name=data.get('shortName') or data.get('longName'),
+        price_at_save=data.get('regularMarketPrice'),
+    )
+
+    db.session.add(new_stock)
+    db.session.commit()
+
+
+    return jsonify({'success': True, 'message': 'Stock saved successfully!', 'timestamp': new_stock.date_save})

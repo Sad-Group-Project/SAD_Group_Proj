@@ -119,13 +119,6 @@ const openLoginModal = () => {
   alert("Login functionality is not implemented yet.");
 };
 
-const generateStockHistory = () => {
-  return Array.from({ length: 30 }, (_, i) => ({
-    date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    price: parseFloat(faker.finance.amount(50, 200, 2))
-  }));
-};
-
 const addStock = async () => {
   const backendURL = import.meta.env.VITE_BACKEND_URL
 
@@ -133,6 +126,13 @@ const addStock = async () => {
 
   try {
     const response = await fetch(`${backendURL}/api/stocks?symbol=${stockSymbol.value.toUpperCase()}`);
+    const addStockResponse = await fetch(`${backendURL}/api/save_stock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ symbol: stockSymbol.value.toUpperCase() })
+    });
+
     const stockData = await response.json();
 
     stockDataList.value.push({
