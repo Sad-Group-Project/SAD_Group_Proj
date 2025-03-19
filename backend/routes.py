@@ -93,6 +93,9 @@ def callback():
     else:
         return "USER EMAIL NOT AVAILABLE", 400
     
+    session["google_id"] = unique_id
+    session.permanent = True  
+    
     user = User.query.filter_by(google_id=unique_id).first()
 
     if not user:

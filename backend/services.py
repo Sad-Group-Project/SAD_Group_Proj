@@ -2,7 +2,6 @@ from yahooquery import Screener, Ticker
 from flask import jsonify, request, session
 import pandas as pd
 from models import User, SavedStocks
-from flask_login import current_user
 from db import db
 
 def get_popular_stocks():
@@ -97,8 +96,9 @@ def get_stocks(user_search):
     return jsonify(stock_data)
 
 def get_save_stock(symbol):
+    google_id = session.get('google_id')
 
-    if not current_user.is_authenticated:
+    if not google_id:
         return jsonify({'success': False, 'error': 'User not logged in'}), 401
     
     user = User.query.filter_by(google_id=google_id).first()
