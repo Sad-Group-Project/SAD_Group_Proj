@@ -5,8 +5,8 @@ from flask_migrate import Migrate
 from db import db, init_db
 from oauthlib.oauth2 import WebApplicationClient
 from flask_login import LoginManager
+from flask_session import Session
 from models import User
-import requests
 
 
 app = Flask(__name__)
@@ -24,6 +24,11 @@ else:
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = True
+app.config["SESSION_USE_SIGNER"] = True
+app.config["SESSION_KEY_PREFIX"] = "flask_session:"
+
 
 login_manager=LoginManager()
 login_manager.init_app(app)
