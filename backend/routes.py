@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, redirect, session, url_for
 from services import get_popular_stocks, get_stocks, get_save_stock
-from app import get_google_provider_cfg, client, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
+from config import get_google_provider_cfg, client, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 import os
 import json
 from functools import wraps

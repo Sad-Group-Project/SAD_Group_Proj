@@ -1,12 +1,19 @@
 import os
-from dotenv import load_dotenv
+import requests
+from oauthlib.oauth2 import WebApplicationClient
 
-load_dotenv()
 
-ENV = os.getenv("FLASK_ENV")
+ENV = os.environ.get("FLASK_ENV")
 
-SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
-if not SQLALCHEMY_DATABASE_URI:
-    raise ValueError("DATABASE_URL is not set. Check your environment variables.")
+SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
 
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
+
+client = WebApplicationClient(GOOGLE_CLIENT_ID)
+
+def get_google_provider_cfg():
+    return requests.get(GOOGLE_DISCOVERY_URL).json()

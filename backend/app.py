@@ -28,18 +28,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 login_manager=LoginManager()
 login_manager.init_app(app)
 
-GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET")
-GOOGLE_DISCOVERY_URL="https://accounts.google.com/.well-known/openid-configuration"
-
-client=WebApplicationClient(GOOGLE_CLIENT_ID)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(user_id)
-
-def get_google_provider_cfg():
-    return requests.get(GOOGLE_DISCOVERY_URL).json()
 
 init_db(app)
 
