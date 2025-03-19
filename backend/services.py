@@ -94,9 +94,13 @@ def get_stocks(user_search):
         'history': history
     }
 
-    return jsonify(stock_data)
+    return stock_data
 
-def get_save_stock(symbol, SECRET_KEY):
+def get_multiple_stocks(symbols):
+    stock_data = {symbol: get_stocks(symbol) for symbol in symbols}
+    return stock_data
+
+def get_add_stock(symbol, SECRET_KEY):
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -134,3 +138,38 @@ def get_save_stock(symbol, SECRET_KEY):
     db.session.commit()
 
     return jsonify({"success": True, "message": "Stock saved successfully!", "timestamp": new_stock.date_save})
+
+def get_users_stocks(SECRET_KEY):
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"success": False, "error": "Missing or invalid token"}), 401
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        google_id = decoded_token.get("google_id")
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"success": False, "error": "Invalid token"}), 401
+    
+    saved_stocks = SavedStocks.query.filter_by(google_id=google_id).all()
+
+    stock_symbols = [stock.symbol for stock in saved_stocks]
+
+    stocks_data = get_multiple_stocks(stock_symbols)
+
+    saved_stocks_list = [
+        {
+            "symbol": stock.symbol,
+            "company_name": stock.company_name,
+            "price_at_save": stock.price_at_save,
+            "date_saved": stock.date_save,
+            "current_info": stocks_data.get(stock.symbol, {})
+        }
+        for stock in saved_stocks
+    ]
+
+    return jsonify({"success": True, "saved_stocks": saved_stocks_list})
