@@ -114,11 +114,14 @@ def callback():
     return redirect(f"{frontend_url}/?token={token}")
 
 
-@api.route("google/logout", methods=['POST'])
-@login_required
+@api.route("google/logout", methods=["POST"])
 def logout():
-    logout_user()
-    return jsonify({"message": "Logged out successfully"}), 200
+    if "user_id" in session:
+        logout_user()
+        session.clear()
+        return jsonify({"message": "Logged out successfully"}), 200
+    else:
+        return jsonify({"message": "User was not logged in"}), 200 
 
 
 def token_required(f):
