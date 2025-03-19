@@ -18,7 +18,7 @@ if os.environ.get("FLASK_ENV") == "development" or os.environ.get("FLASK_ENV") =
 origins_str = os.environ.get("ALLOWED_ORIGINS")
 if origins_str:
     origins = origins_str.split(",")
-    CORS(app, origins=origins, supports_credentials=True)
+    CORS(app, origins=origins, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 else:
     raise ValueError("ALLOWED_ORIGINS environment variable must be set in production")
 

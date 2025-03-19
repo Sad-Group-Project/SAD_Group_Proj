@@ -126,12 +126,12 @@ const addStock = async () => {
 
   try {
     const response = await fetch(`${backendURL}/api/stocks?symbol=${stockSymbol.value.toUpperCase()}`);
-    const addStockResponse = await fetch(`${backendURL}/api/save_stock`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ symbol: stockSymbol.value.toUpperCase() })
-    });
+    const token = localStorage.getItem("token");
+    if(!token){
+      console.error("No token found");
+      window.location.href = "/login";
+      return
+    }
 
     const stockData = await response.json();
 
@@ -141,6 +141,14 @@ const addStock = async () => {
       change: stockData.change,
       recommendation: stockData.recommendation,
       history: stockData.history
+    });
+    const addStockResponse = await fetch(`${backendURL}/api/save_stock`, {
+    method: "POST",
+    headers: { 
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+     },
+     body: JSON.stringify({ symbol: stockData.symbol })
     });
   } catch (error) {
     console.error('Error fetching stock data:', error);

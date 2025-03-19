@@ -37,7 +37,7 @@ def save_stock():
         origin = request.headers.get("Origin")
         response.headers.add("Access-Control-Allow-Origin", origin)
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response, 200
 
@@ -45,7 +45,7 @@ def save_stock():
     if not data:
         return jsonify({"error": "No JSON payload provided"}), 400
     stock_symbol = data.get('symbol')
-    return get_save_stock(stock_symbol)
+    return get_save_stock(stock_symbol, SECRET_KEY)
 
 @api.route('google/login', methods=['GET', 'POST'])
 def login():

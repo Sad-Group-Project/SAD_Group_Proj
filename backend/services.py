@@ -3,6 +3,7 @@ from flask import jsonify, request, session
 import pandas as pd
 from models import User, SavedStocks
 from db import db
+import jwt
 
 def get_popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
@@ -95,32 +96,41 @@ def get_stocks(user_search):
 
     return jsonify(stock_data)
 
-def get_save_stock(symbol):
-    google_id = session.get('google_id')
+def get_save_stock(symbol, SECRET_KEY):
+    auth_header = request.headers.get("Authorization")
 
-    if not google_id:
-        return jsonify({'success': False, 'error': 'User not logged in'}), 401
-    
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"success": False, "error": "Missing or invalid token"}), 401
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        google_id = decoded_token.get("google_id")
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"success": False, "error": "Invalid token"}), 401
+
     user = User.query.filter_by(google_id=google_id).first()
     if not user:
-        return jsonify({'success': False, 'error': "User not found"}), 404
-    
+        return jsonify({"success": False, "error": "User not found"}), 404
+
     existing_stock = SavedStocks.query.filter_by(google_id=google_id, symbol=symbol).first()
     if existing_stock:
-        return jsonify({'success': False, 'error': 'Stock is already added'}), 409
-    
+        return jsonify({"success": False, "error": "Stock is already added"}), 409
+
     stock = Ticker(symbol)
     data = stock.price.get(symbol, {})
-    
+
     new_stock = SavedStocks(
-        google_id = google_id,
-        symbol = symbol,
-        company_name=data.get('shortName') or data.get('longName'),
-        price_at_save=data.get('regularMarketPrice'),
+        google_id=google_id,
+        symbol=symbol,
+        company_name=data.get("shortName") or data.get("longName"),
+        price_at_save=data.get("regularMarketPrice"),
     )
 
     db.session.add(new_stock)
     db.session.commit()
 
-
-    return jsonify({'success': True, 'message': 'Stock saved successfully!', 'timestamp': new_stock.date_save}) 
+    return jsonify({"success": True, "message": "Stock saved successfully!", "timestamp": new_stock.date_save})
