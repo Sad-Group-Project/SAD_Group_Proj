@@ -29,6 +29,7 @@ app.config["SESSION_PERMANENT"] = True
 app.config["SESSION_USE_SIGNER"] = True
 app.config["SESSION_KEY_PREFIX"] = "flask_session:"
 
+Session(app)
 
 login_manager=LoginManager()
 login_manager.init_app(app)
