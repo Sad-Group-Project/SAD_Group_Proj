@@ -12,7 +12,7 @@ import requests
 app = Flask(__name__)
 app.secret_key=os.environ.get("SECRET_KEY")
 
-if os.environ.get("FLASK_ENV") == "development":
+if os.environ.get("FLASK_ENV") == "development" or os.environ.get("FLASK_ENV") == "production":
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 origins_str = os.environ.get("ALLOWED_ORIGINS")
