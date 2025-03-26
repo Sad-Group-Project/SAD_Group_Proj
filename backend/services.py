@@ -4,6 +4,7 @@ import pandas as pd
 from models import User, SavedStocks
 from db import db
 import jwt
+import os
 
 def get_popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
@@ -146,7 +147,6 @@ def get_users_stocks(SECRET_KEY):
         return jsonify({"success": False, "error": "Missing or invalid token"}), 401
     
     token = auth_header.split(" ")[1]
-    
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         google_id = decoded_token.get("google_id")
@@ -173,3 +173,31 @@ def get_users_stocks(SECRET_KEY):
     ]
 
     return jsonify({"success": True, "saved_stocks": saved_stocks_list})
+
+def get_user_profile(SECRET_KEY):
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"success": False, "error": "Missing or invalid token"}), 401
+    
+    token = auth_header.split(" ")[1]
+
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        google_id = decoded_token.get("google_id")
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"success": False, "error": "Invalid token"}), 401
+    
+    user_profile = User.query.filter_by(google_id=google_id).first()
+
+    user_info = {
+        "google_id": user_profile.google_id,
+        "username": user_profile.name,
+        "email": user_profile.email,
+        "profile_picture": user_profile.profile_picture,
+        "created_at": user_profile.created_at
+    }
+
+    return jsonify(user_info)
