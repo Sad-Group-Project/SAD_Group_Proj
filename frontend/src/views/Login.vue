@@ -15,11 +15,15 @@
   </div>
 </template>
 
-<script setup lang="ts">
-function loginWithGoogle() {
-  const backendUrl = import.meta.env.VITE_API_BASE_URL;
-  window.location.href = `${backendUrl}/api/google/login`;
-}
+<script>
+export default {
+  methods: {
+    loginWithGoogle() {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      window.location.href = `${backendUrl}/api/google/login`;
+    }
+  }
+};
 </script>
 
 <style scoped>
