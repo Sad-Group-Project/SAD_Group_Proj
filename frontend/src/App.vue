@@ -18,14 +18,14 @@
 
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav me-auto">
+            <!-- <li class="nav-item">
+              <router-link class="nav-link" to="/saved-stocks">💾 Saved Stocks</router-link>
+            </li> -->
+            <li class="nav-item">
+              <router-link class="nav-link" to="/popular">🔥 Popular Stocks</router-link>
+            </li>
             <li class="nav-item">
               <router-link class="nav-link" to="/profile">👤 Profile</router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link" to="/saved-stocks">💾 Saved Stocks</router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link" to="/top-stocks">🔥 Top Stocks</router-link>
             </li>
           </ul>
 

@@ -1,4 +1,4 @@
-from yahooquery import Screener, Ticker
+from yahooquery import Screener, Ticker, search
 from flask import jsonify, request, session
 import pandas as pd
 from models import User, SavedStocks
@@ -32,12 +32,12 @@ def get_popular_stocks():
             for symbol, group in grouped:
                 group = group.reset_index(level=0, drop=True)
                 group.reset_index(inplace=True)
-                timestamps = group["date"].astype(str).tolist()
+                timestamps = group["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
                 prices = group["close"].tolist()
                 mini_chart[symbol] = {"timestamps": timestamps, "prices": prices}
         else:
             hist.reset_index(inplace=True)
-            timestamps = hist["date"].astype(str).tolist()
+            timestamps = hist["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
             prices = hist["close"].tolist()
             mini_chart[symbols[0]] = {"timestamps": timestamps, "prices": prices}
 
@@ -59,6 +59,7 @@ def get_popular_stocks():
         stocks.append(stock_data)
 
     return jsonify(stocks)
+
 
 def get_stocks(user_search):
 
@@ -98,8 +99,48 @@ def get_stocks(user_search):
     return stock_data
 
 def get_multiple_stocks(symbols):
-    stock_data = {symbol: get_stocks(symbol) for symbol in symbols}
+    tickers = Ticker(symbols, asynchronous=True)
+
+    financials = tickers.financial_data
+    history_data = tickers.history(period="1mo")
+
+    stock_data = {}
+
+    for symbol in symbols:
+        info = financials.get(symbol, {})
+        history_df = history_data.loc[symbol] if isinstance(history_data, pd.DataFrame) and symbol in history_data.index else pd.DataFrame()
+
+        history = []
+        stock_price = info.get("currentPrice")
+        price_24h_ago = None
+
+        if not history_df.empty:
+            history_df = history_df.reset_index()
+            if len(history_df) > 1:
+                price_24h_ago = history_df.iloc[-2]["close"]
+
+            history = [
+                {"date": row["date"].strftime("%Y-%m-%d"), "price": row["close"]}
+                for _, row in history_df.iterrows()
+            ]
+
+        price_change = 0
+        price_change_percentage = 0
+
+        if stock_price and price_24h_ago:
+            price_change = stock_price - price_24h_ago
+            price_change_percentage = (price_change / price_24h_ago) * 100
+
+        stock_data[symbol] = {
+            'symbol': symbol,
+            'price': stock_price,
+            'recommendation': info.get("recommendationKey"),
+            'change': price_change_percentage,
+            'history': history
+        }
+
     return stock_data
+
 
 def get_add_stock(symbol, SECRET_KEY):
     auth_header = request.headers.get("Authorization")
@@ -201,3 +242,47 @@ def get_user_profile(SECRET_KEY):
     }
 
     return jsonify(user_info)
+
+def get_search(user_search):
+    results = search(user_search)
+    symbols = [value.get('symbol', 'Unknown') for value in results.get('quotes', [])]
+
+    if not symbols:
+        return jsonify({'quotes': []}) 
+
+    stock_data = Ticker(symbols)
+
+    price_data = stock_data.price
+    history_data = stock_data.history(period="1d", interval="1h")
+
+    search_data = []
+
+    for value in results.get('quotes', []):
+        symbol = value.get('symbol', 'Unknown')
+
+        price_info = price_data.get(symbol, {})
+        stock_price = price_info.get("regularMarketPrice", 0.00)
+        previous_close = price_info.get("regularMarketPreviousClose", stock_price)
+
+        price_change_percent = round(((stock_price - previous_close) / previous_close) * 100, 2) if previous_close else 0.00
+
+        chart_data = []
+        if isinstance(history_data, pd.DataFrame) and not history_data.empty and symbol in history_data.index:
+            stock_history = history_data.xs(symbol, level=0)
+            chart_data = stock_history["close"].dropna().tolist()
+
+        temp = {
+            "symbol": symbol,
+            "longName": value.get("longname", "Unknown"),
+            "shortName": value.get("shortname", "Unknown"),
+            "exchange": value.get("exchange", "Unknown"),
+            "exchDisp": value.get("exchDisp", "Unknown"),
+            "industry": value.get("industry", "Unknown"),
+            "regularMarketPrice": stock_price,
+            "regularMarketChangePercent": price_change_percent,
+            "chartData": chart_data if chart_data else [0]
+        }
+
+        search_data.append(temp)
+
+    return jsonify({'quotes': search_data})

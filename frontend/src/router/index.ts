@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import PopularStocks from '@/views/PopularStocks.vue'
 import Profile from '@/views/Profile.vue'
 import Login from '@/views/Login.vue'
+import Search from '@/views/Search.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -25,6 +26,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/login',
     name: 'login',
     component: Login
+  },
+  {
+    path: '/search',
+    name: 'search',
+    component: Search
   },
 ]
 
