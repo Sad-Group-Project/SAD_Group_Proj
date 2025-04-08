@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import Chart from 'chart.js/auto';
+import 'chartjs-adapter-date-fns';
 
 const stockDataList = ref<any[]>([]);
 const stockColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
@@ -98,7 +99,7 @@ function updateChart() {
   const ctx = chartCanvas.value.getContext('2d');
   if (!ctx || stockDataList.value.length === 0) return;
 
-  const labels = stockDataList.value[0].historyDates;
+  const labels = stockDataList.value[0].historyDates.map((date: string) => new Date(date));
 
   const datasets = stockDataList.value.map((stock, index) => ({
     label: stock.symbol,
@@ -125,9 +126,19 @@ function updateChart() {
       },
       scales: {
         x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            tooltipFormat: 'MMM dd',
+            displayFormats: {
+              day: 'MMM dd',
+            }
+          },
           ticks: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-color'),
-          },
+            maxRotation: 30,
+            minRotation: 30,
+          }
         },
         y: {
           ticks: {

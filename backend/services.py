@@ -5,6 +5,8 @@ from models import User, SavedStocks
 from db import db
 import jwt
 import os
+import re
+from sqlalchemy.exc import IntegrityError
 
 def get_popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
@@ -143,8 +145,10 @@ def get_multiple_stocks(symbols):
 
 
 def get_add_stock(symbol, SECRET_KEY):
-    auth_header = request.headers.get("Authorization")
+    if not symbol or symbol.upper() in ["", "EMPTY", "NONE"] or not re.match(r"^[A-Z.\-]+$", symbol.upper()):
+        return jsonify({"success": False, "error": "Invalid stock symbol"}), 400
 
+    auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return jsonify({"success": False, "error": "Missing or invalid token"}), 401
 
@@ -169,15 +173,25 @@ def get_add_stock(symbol, SECRET_KEY):
     stock = Ticker(symbol)
     data = stock.price.get(symbol, {})
 
+    company_name = data.get("shortName") or data.get("longName")
+    price_at_save = data.get("regularMarketPrice")
+
+    if not company_name or price_at_save is None:
+        return jsonify({"success": False, "error": "Invalid or missing stock data"}), 400
+
     new_stock = SavedStocks(
         google_id=google_id,
         symbol=symbol,
-        company_name=data.get("shortName") or data.get("longName"),
-        price_at_save=data.get("regularMarketPrice"),
+        company_name=company_name,
+        price_at_save=price_at_save,
     )
 
-    db.session.add(new_stock)
-    db.session.commit()
+    try:
+        db.session.add(new_stock)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Stock already exists"}), 409
 
     return jsonify({"success": True, "message": "Stock saved successfully!", "timestamp": new_stock.date_save})
 
