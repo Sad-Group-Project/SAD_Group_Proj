@@ -87,26 +87,30 @@
     </div>
 
     <div v-if="showConfirmModal" class="modal-backdrop">
-      <div class="custom-modal">
-        <p>Are you sure you want to add <strong>{{ pendingSymbol }}</strong>?</p>
-        <div class="text-end">
-          <button class="btn btn-secondary me-2" @click="closeConfirmModal">Cancel</button>
-          <button class="btn btn-success" @click="confirmAddStock">Yes</button>
+      <div class="modal-content-custom">
+        <h5>Add {{ pendingSymbol }} to your saved stocks?</h5>
+        <div class="mt-3 d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" :disabled="isAdding" @click="closeConfirmModal">Cancel</button>
+          <button class="btn btn-primary d-flex align-items-center" :disabled="isAdding" @click="confirmAddStock">
+            <span v-if="isAdding" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span v-if="!isAdding">Yes, Add</span>
+            <span v-else>Adding...</span>
+          </button>
         </div>
       </div>
     </div>
 
     <div v-if="showSavedModal" class="modal-backdrop">
-      <div class="custom-modal text-center">
-        <p><strong>{{ savedSymbol }}</strong> has been saved!</p>
-        <button class="btn btn-primary mt-2" @click="showSavedModal = false">OK</button>
+      <div class="modal-content-custom text-center">
+        <h5>✅ {{ savedSymbol }} saved successfully!</h5>
+        <button class="btn btn-success mt-3" @click="showSavedModal = false">Close</button>
       </div>
     </div>
 
     <div v-if="showDuplicateModal" class="modal-backdrop">
-      <div class="custom-modal text-center">
-        <p><strong>{{ pendingSymbol }}</strong> is already in your saved stocks.</p>
-        <button class="btn btn-primary mt-2" @click="showDuplicateModal = false">OK</button>
+      <div class="modal-content-custom text-center">
+        <h5>⚠️ {{ pendingSymbol }} is already saved.</h5>
+        <button class="btn btn-primary mt-3" @click="showDuplicateModal = false">OK</button>
       </div>
     </div>
   </div>
@@ -127,6 +131,7 @@ const showSavedModal = ref(false)
 const showDuplicateModal = ref(false)
 const pendingSymbol = ref('')
 const savedSymbol = ref('')
+const isAdding = ref(false)
 
 function openConfirmModal(symbol) {
   pendingSymbol.value = symbol
@@ -139,8 +144,10 @@ function closeConfirmModal() {
 }
 
 async function confirmAddStock() {
-  showConfirmModal.value = false
+  if (isAdding.value) return
+  isAdding.value = true
   await addStock(pendingSymbol.value)
+  isAdding.value = false
 }
 
 async function addStock(symbol) {
@@ -164,6 +171,7 @@ async function addStock(symbol) {
     })
 
     if (res.status === 409) {
+      showConfirmModal.value = false
       showDuplicateModal.value = true
       return
     }
@@ -171,9 +179,11 @@ async function addStock(symbol) {
     if (!res.ok) throw new Error('Failed to save stock')
 
     savedSymbol.value = symbol
+    showConfirmModal.value = false
     showSavedModal.value = true
   } catch (err) {
     console.error('Failed to save stock:', err)
+    showConfirmModal.value = false
   }
 }
 
@@ -270,11 +280,12 @@ onMounted(() => {
   justify-content: center;
 }
 
-.custom-modal {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  width: 100%;
+.modal-content-custom {
+  background: #ffffff;
+  color: #000000;
+  padding: 20px;
+  border-radius: 12px;
+  min-width: 300px;
   max-width: 400px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }

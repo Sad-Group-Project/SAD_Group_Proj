@@ -300,3 +300,27 @@ def get_search(user_search):
         search_data.append(temp)
 
     return jsonify({'quotes': search_data})
+
+def remove_stock(stock_symbol, SECRET_KEY):
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"success": False, "error": "Missing or invalid token"}), 401
+    
+    token = auth_header.split(" ")[1]
+
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        google_id = decoded_token.get("google_id")
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"success": False, "error": "Invalid token"}), 401
+    
+    stock = SavedStocks.query.filter_by(google_id=google_id, symbol=stock_symbol).first()
+    if stock:
+        db.session.delete(stock)
+        db.session.commit()
+        return {'message': f'{stock_symbol} deleted'}
+    else:
+        return {'error': 'Stock not found'}, 404

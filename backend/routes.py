@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, redirect, session, url_for
-from services import get_popular_stocks, get_stocks, get_add_stock, get_users_stocks, get_user_profile, get_search
+from services import get_popular_stocks, get_stocks, get_add_stock, get_users_stocks, get_user_profile, get_search, remove_stock
 from config import get_google_provider_cfg, client, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 import os
 import json
@@ -46,6 +46,11 @@ def save_stock():
         return jsonify({"error": "No JSON payload provided"}), 400
     stock_symbol = data.get('symbol')
     return get_add_stock(stock_symbol, SECRET_KEY)
+
+@api.route('/delete_stock', methods=['DELETE'])
+def del_stock():
+    stock_symbol = request.args.get('symbol')
+    return remove_stock(stock_symbol, SECRET_KEY)
 
 @api.route('/user_stocks')
 def user_stocks():
