@@ -29,7 +29,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="stock in popularStocks" :key="stock.symbol">
+            <tr 
+              v-for="stock in popularStocks" 
+              :key="stock.symbol"
+              @click="viewStockDetails(stock.symbol)"
+              class="stock-row"
+            >
               <td><strong>{{ stock.symbol }}</strong></td>
               <td>{{ stock.company_name }}</td>
               <td>${{ stock.current_price?.toFixed(2) }}</td>
@@ -76,6 +81,10 @@ function goToSearchPage() {
     router.push({ name: 'search', query: { q: stockSymbol.value.trim() } });
     stockSymbol.value = '';
   }
+}
+
+function viewStockDetails(symbol) {
+  router.push({ name: 'stock-details', params: { symbol } });
 }
 
 async function fetchPopularStocks() {
@@ -201,5 +210,9 @@ onMounted(() => {
 
 .negative {
   color: #c0392b;
+}
+
+.stock-row {
+  cursor: pointer;
 }
 </style>

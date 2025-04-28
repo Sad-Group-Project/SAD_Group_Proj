@@ -6,6 +6,9 @@ from db import db
 import jwt
 import os
 import re
+import time
+import random
+import yfinance as yf
 from sqlalchemy.exc import IntegrityError
 
 def get_popular_stocks():
@@ -324,3 +327,227 @@ def remove_stock(stock_symbol, SECRET_KEY):
         return {'message': f'{stock_symbol} deleted'}
     else:
         return {'error': 'Stock not found'}, 404
+
+def get_detailed_stock_info(stock_symbol):
+    if not stock_symbol or not isinstance(stock_symbol, str):
+        return jsonify({"success": False, "error": "Invalid stock symbol"}), 400
+
+    symbol = stock_symbol.upper()
+    print(f"Processing request for detailed info on symbol: {symbol}")
+    
+    try:
+        detailed_data = {
+            "success": True,
+            "symbol": symbol,
+            "company_info": {
+                "name": symbol,
+                "sector": "",
+                "industry": "",
+                "website": "",
+                "description": "",
+                "exchange": "",
+                "market_cap": 0,
+                "employees": 0
+            },
+            "price_data": {
+                "current_price": 0,
+                "previous_close": 0,
+                "open": 0,
+                "day_high": 0,
+                "day_low": 0,
+                "day_change": 0,
+                "day_change_percent": 0,
+                "52wk_high": 0,
+                "52wk_low": 0,
+                "volume": 0
+            },
+            "financial_metrics": {
+                "pe_ratio": 0,
+                "eps": 0,
+                "dividend_yield": 0,
+                "dividend_rate": 0,
+                "profit_margin": 0,
+                "beta": 0,
+                "recommendation": "NONE",
+                "target_price": 0
+            },
+            "historical_data": {
+                "1d": {"interval": "15m", "data": []},
+                "1mo": {"interval": "1d", "data": []},
+                "1y": {"interval": "1wk", "data": []},
+                "5y": {"interval": "1mo", "data": []}
+            }
+        }
+        
+        print(f"Creating yfinance Ticker instance for {symbol}")
+        stock = yf.Ticker(symbol)
+        
+        try:
+            fast_info = stock.fast_info
+            if fast_info:
+                print("Retrieved fast info successfully")
+                
+                current_price = getattr(fast_info, 'last_price', None) or getattr(fast_info, 'regularMarketPrice', 0)
+                previous_close = getattr(fast_info, 'previous_close', current_price)
+                
+                if current_price and previous_close:
+                    day_change = current_price - previous_close
+                    day_change_percent = (day_change / previous_close) * 100 if previous_close else 0
+                    
+                    detailed_data["price_data"].update({
+                        "current_price": current_price,
+                        "previous_close": previous_close, 
+                        "open": getattr(fast_info, 'open', current_price),
+                        "day_high": getattr(fast_info, 'day_high', current_price),
+                        "day_low": getattr(fast_info, 'day_low', current_price),
+                        "day_change": day_change,
+                        "day_change_percent": day_change_percent,
+                        "volume": getattr(fast_info, 'last_volume', 0) or 0
+                    })
+                
+                detailed_data["price_data"]["52wk_high"] = getattr(fast_info, 'year_high', 0) or 0
+                detailed_data["price_data"]["52wk_low"] = getattr(fast_info, 'year_low', 0) or 0
+                
+                if hasattr(fast_info, 'market_cap') and fast_info.market_cap:
+                    detailed_data["company_info"]["market_cap"] = fast_info.market_cap
+        except Exception as e:
+            print(f"Error fetching fast info: {str(e)}")
+
+        try:
+            info = stock.info
+            print("Retrieved full info successfully")
+            
+            if info:
+                detailed_data["company_info"].update({
+                    "name": info.get("shortName") or info.get("longName") or symbol,
+                    "sector": info.get("sector", ""),
+                    "industry": info.get("industry", ""),
+                    "website": info.get("website", ""),
+                    "description": info.get("longBusinessSummary", ""),
+                    "exchange": info.get("exchange", ""),
+                    "employees": info.get("fullTimeEmployees", 0) or 0
+                })
+                
+                if not detailed_data["company_info"]["market_cap"] and info.get("marketCap"):
+                    detailed_data["company_info"]["market_cap"] = info.get("marketCap")
+                
+                if not detailed_data["price_data"]["current_price"] and info.get("currentPrice"):
+                    current_price = info.get("currentPrice")
+                    previous_close = info.get("previousClose", current_price)
+                    
+                    if current_price and previous_close:
+                        day_change = current_price - previous_close
+                        day_change_percent = (day_change / previous_close) * 100 if previous_close else 0
+                        
+                        if not detailed_data["price_data"]["current_price"]:
+                            detailed_data["price_data"]["current_price"] = current_price
+                        if not detailed_data["price_data"]["previous_close"]:
+                            detailed_data["price_data"]["previous_close"] = previous_close
+                        if not detailed_data["price_data"]["open"]:
+                            detailed_data["price_data"]["open"] = info.get("open", current_price)
+                        if not detailed_data["price_data"]["day_high"]:
+                            detailed_data["price_data"]["day_high"] = info.get("dayHigh", current_price)
+                        if not detailed_data["price_data"]["day_low"]:
+                            detailed_data["price_data"]["day_low"] = info.get("dayLow", current_price)
+                        if not detailed_data["price_data"]["day_change"]:
+                            detailed_data["price_data"]["day_change"] = day_change
+                        if not detailed_data["price_data"]["day_change_percent"]:
+                            detailed_data["price_data"]["day_change_percent"] = day_change_percent
+                
+                if not detailed_data["price_data"]["52wk_high"]:
+                    detailed_data["price_data"]["52wk_high"] = info.get("fiftyTwoWeekHigh", 0)
+                if not detailed_data["price_data"]["52wk_low"]:
+                    detailed_data["price_data"]["52wk_low"] = info.get("fiftyTwoWeekLow", 0)
+                
+                if not detailed_data["price_data"]["volume"]:
+                    detailed_data["price_data"]["volume"] = info.get("volume", 0) or info.get("averageVolume", 0) or 0
+                
+                detailed_data["financial_metrics"].update({
+                    "pe_ratio": info.get("forwardPE", 0) or info.get("trailingPE", 0) or 0,
+                    "eps": info.get("trailingEps", 0) or 0,
+                    "dividend_yield": (info.get("dividendYield", 0) or 0) * 100,
+                    "dividend_rate": info.get("dividendRate", 0) or 0,
+                    "profit_margin": info.get("profitMargins", 0) or 0,
+                    "beta": info.get("beta", 0) or 0,
+                    "recommendation": info.get("recommendationKey", "NONE") or "NONE",
+                    "target_price": info.get("targetMeanPrice", 0) or 0
+                })
+        except Exception as e:
+            print(f"Error fetching company info: {str(e)}")
+        
+        print(f"Fetching historical data for {symbol}")
+        timeframes = {
+            "1d": {"period": "1d", "interval": "15m"},
+            "1mo": {"period": "1mo", "interval": "1d"},
+            "1y": {"period": "1y", "interval": "1wk"},
+            "5y": {"period": "5y", "interval": "1mo"}
+        }
+        
+        for timeframe, params in timeframes.items():
+            try:
+                history = stock.history(period=params["period"], interval=params["interval"])
+                
+                if not history.empty:
+                    data_points = []
+                    
+                    for date, row in history.iterrows():
+                        if isinstance(date, pd.Timestamp):
+                            timestamp = int(date.timestamp() * 1000)
+                        else:
+                            timestamp = int(pd.Timestamp(date).timestamp() * 1000)
+                        
+                        if isinstance(row, pd.Series) and "Close" in row:
+                            close_price = row["Close"]
+                        elif isinstance(row, pd.DataFrame):
+                            if "Close" in row.columns:
+                                close_price = row["Close"].iloc[0]
+                            else:
+                                close_price = 0
+                        else:
+                            close_price = 0
+                        
+                        data_points.append({
+                            "timestamp": timestamp,
+                            "value": float(close_price),
+                            "date": date.strftime("%Y-%m-%d %H:%M:%S") if hasattr(date, "strftime") else str(date),
+                            "close": float(close_price)
+                        })
+                    
+                    data_points.sort(key=lambda x: x["timestamp"])
+                    
+                    detailed_data["historical_data"][timeframe]["data"] = data_points
+                    
+                    print(f"Successfully processed {len(data_points)} data points for {timeframe}")
+                else:
+                    print(f"No historical data returned for {timeframe}")
+            except Exception as e:
+                print(f"Error fetching {timeframe} history for {symbol}: {str(e)}")
+        
+        print(f"Generating response for {symbol}")
+        return jsonify(detailed_data)
+    
+    except Exception as e:
+        print(f"Unhandled exception in get_detailed_stock_info for {symbol}: {str(e)}")
+        error_response = {
+            "success": True,
+            "symbol": symbol,
+            "error_info": str(e),
+            "company_info": {"name": symbol, "sector": "", "industry": "", "exchange": "", "market_cap": 0, "employees": 0},
+            "price_data": {
+                "current_price": 0, "previous_close": 0, "open": 0,
+                "day_high": 0, "day_low": 0, "day_change": 0, "day_change_percent": 0,
+                "52wk_high": 0, "52wk_low": 0, "volume": 0
+            },
+            "financial_metrics": {
+                "pe_ratio": 0, "eps": 0, "dividend_yield": 0, 
+                "dividend_rate": 0, "profit_margin": 0, "beta": 0,
+                "recommendation": "NONE", "target_price": 0
+            },
+            "historical_data": {
+                "1d": {"interval": "15m", "data": []},
+                "1mo": {"interval": "1d", "data": []},
+                "1y": {"interval": "1wk", "data": []},
+                "5y": {"interval": "1mo", "data": []}
+            }
+        }
+        return jsonify(error_response)

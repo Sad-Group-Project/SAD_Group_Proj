@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, redirect, session, url_for
-from services import get_popular_stocks, get_stocks, get_add_stock, get_users_stocks, get_user_profile, get_search, remove_stock
+from services import get_popular_stocks, get_stocks, get_add_stock, get_users_stocks, get_user_profile, get_search, remove_stock, get_detailed_stock_info
 from config import get_google_provider_cfg, client, GOOGLE_CLIENT_SECRET, GOOGLE_CLIENT_ID
 import os
 import json
@@ -64,6 +64,10 @@ def user_profile():
 def search():
     search = request.args.get('search_stock')
     return get_search(search)
+
+@api.route('/stock_details/<symbol>', methods=['GET'])
+def stock_details(symbol):
+    return get_detailed_stock_info(symbol)
 
 @api.route('google/login', methods=['GET', 'POST'])
 def login():

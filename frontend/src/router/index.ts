@@ -5,6 +5,7 @@ import PopularStocks from '@/views/PopularStocks.vue'
 import Profile from '@/views/Profile.vue'
 import Login from '@/views/Login.vue'
 import Search from '@/views/Search.vue'
+import StockDetails from '@/views/StockDetails.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -31,6 +32,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/search',
     name: 'search',
     component: Search
+  },
+  {
+    path: '/stock/:symbol',
+    name: 'stock-details',
+    component: StockDetails
   },
 ]
 

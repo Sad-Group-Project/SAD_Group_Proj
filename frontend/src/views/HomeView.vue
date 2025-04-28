@@ -19,7 +19,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(stock, index) in stockDataList" :key="stock.symbol">
+              <tr v-for="(stock, index) in stockDataList" :key="stock.symbol" 
+                 @click="viewStockDetails(stock.symbol)" 
+                 class="stock-row">
                 <td :style="{ color: stockColors[index % stockColors.length] }">
                   <strong>{{ stock.symbol }}</strong><br />
                   <small>{{ stock.company_name }}</small>
@@ -46,7 +48,9 @@
 import { ref, onMounted, watch } from 'vue';
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const stockDataList = ref<any[]>([]);
 const stockColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 
@@ -150,6 +154,10 @@ function updateChart() {
   });
 }
 
+function viewStockDetails(symbol: string) {
+  router.push({ name: 'stock-details', params: { symbol } });
+}
+
 onMounted(async () => {
   await fetchStockData();
   updateChart();
@@ -207,4 +215,7 @@ watch(stockDataList, updateChart, { deep: true });
   border-radius: 6px;
 }
 
+.stock-row {
+  cursor: pointer;
+}
 </style>

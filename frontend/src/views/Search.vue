@@ -29,7 +29,7 @@
         :class="cardColClass(index)"
       >
         <div class="card h-100">
-          <div class="card-body d-flex flex-column justify-content-between">
+          <div class="card-body d-flex flex-column justify-content-between" @click="viewStockDetails(result.symbol)">
             <div>
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-bold fs-5">
@@ -118,9 +118,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const searchQuery = ref(route.query.q || '')
 const results = ref([])
 const loading = ref(false)
@@ -241,6 +242,10 @@ function cardColClass(index) {
   const isOdd = total % 2 !== 0
   const isLast = index === total - 1
   return isOdd && isLast ? 'col-12 col-md-8 mx-auto' : 'col-12 col-md-6'
+}
+
+function viewStockDetails(symbol) {
+  router.push({ name: 'stock-details', params: { symbol } });
 }
 
 onMounted(() => {
