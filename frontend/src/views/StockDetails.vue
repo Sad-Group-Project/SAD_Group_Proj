@@ -1,6 +1,5 @@
 <template>
   <div class="container mt-4">
-    <!-- Progressive Loading Header Section -->
     <div class="card mb-4 stock-header" v-if="symbol">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
@@ -47,7 +46,6 @@
       </div>
     </div>
 
-    <!-- Chart Section - Show placeholder immediately -->
     <div class="card mb-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -77,7 +75,6 @@
     </div>
 
     <div class="row">
-      <!-- Key Stats -->
       <div class="col-md-6 mb-4">
         <div class="card h-100">
           <div class="card-header">
@@ -97,7 +94,6 @@
         </div>
       </div>
       
-      <!-- Financial Metrics -->
       <div class="col-md-6 mb-4">
         <div class="card h-100">
           <div class="card-header">
@@ -118,7 +114,6 @@
       </div>
     </div>
 
-    <!-- About - Show last as this data is less critical -->
     <div class="card mb-4" v-if="loadingState.companyInfoLoaded">
       <div class="card-header">
         <h4 class="card-title mb-0">About {{ stockData.company_info.name }}</h4>
@@ -156,6 +151,20 @@
       </div>
     </div>
 
+    <div v-if="showConfirmModal" class="modal-backdrop">
+      <div class="modal-content-custom">
+        <h5>Add {{ symbol }} to your saved stocks?</h5>
+        <div class="mt-3 d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" :disabled="isSaving" @click="showConfirmModal = false">Cancel</button>
+          <button class="btn btn-primary d-flex align-items-center" :disabled="isSaving" @click="confirmSaveStock">
+            <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span v-if="!isSaving">Yes, Add</span>
+            <span v-else>Adding...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showSaveModal" class="modal-backdrop">
       <div class="modal-content-custom text-center">
         <h5>✅ {{ stockData.symbol }} saved successfully!</h5>
@@ -188,7 +197,6 @@ const route = useRoute();
 const router = useRouter();
 const symbol = computed(() => route.params.symbol?.toUpperCase());
 
-// Use progressive loading state tracking
 const loadingState = reactive({
   priceLoaded: false,
   chartDataLoaded: false,
@@ -207,7 +215,6 @@ const stockData = ref({
   historical_data: {}
 });
 
-// Precomputed lists for easier skeleton loading
 const keyStatsList = computed(() => [
   { label: 'Previous Close', value: stockData.value.price_data.previous_close, formatter: 'price' },
   { label: 'Open', value: stockData.value.price_data.open, formatter: 'price' },
@@ -231,7 +238,6 @@ const financialMetricsList = computed(() => [
 
 const chartCanvas = ref(null);
 let chartInstance = null;
-let chartDataCache = {};
 
 const timePeriods = [
   { label: '1D', value: '1d' },
@@ -241,11 +247,12 @@ const timePeriods = [
 ];
 const currentPeriod = ref('1mo');
 
+const showConfirmModal = ref(false);
 const showSaveModal = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
+const isSaving = ref(false);
 
-// Format helpers
 function formatPrice(value) {
   if (value === null || value === undefined) return 'N/A';
   return Number(value).toFixed(2);
@@ -310,7 +317,6 @@ function getRecommendationClass() {
   return 'neutral';
 }
 
-// Fetch stock data with progressive loading
 async function fetchStockDetails() {
   if (!symbol.value) {
     error.value = 'Invalid stock symbol.';
@@ -318,7 +324,6 @@ async function fetchStockDetails() {
     return;
   }
   
-  // Reset loading states
   Object.keys(loadingState).forEach(key => {
     loadingState[key] = false;
   });
@@ -328,9 +333,7 @@ async function fetchStockDetails() {
   
   try {
     const backendURL = import.meta.env.VITE_BACKEND_URL;
-    console.log(`Fetching stock details for ${symbol.value} from ${backendURL}/api/stock_details/${symbol.value}`);
     
-    // Use AbortController to cancel request if it takes too long
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
@@ -350,18 +353,8 @@ async function fetchStockDetails() {
       throw new Error(data.error || 'Failed to fetch stock details');
     }
     
-    // Log detailed response to debug
-    console.log("Stock API response:", data);
-    console.log("Financial metrics:", data.financial_metrics);
-    console.log("Price data:", data.price_data);
-    console.log("Company info:", data.company_info);
-    console.log("Historical data periods:", Object.keys(data.historical_data));
-    console.log(`Has recommendation: ${data.financial_metrics && data.financial_metrics.recommendation !== undefined && data.financial_metrics.recommendation !== null}`);
-    
-    // Store the data and update loading states progressively
     stockData.value = data;
     
-    // Verify data completeness before setting loading states
     const hasPriceData = data.price_data && 
                          (data.price_data.current_price !== undefined && 
                           data.price_data.current_price !== null);
@@ -378,10 +371,7 @@ async function fetchStockDetails() {
                          
     const hasCompanyInfo = data.company_info && 
                           data.company_info.name;
-    
-    console.log(`Data availability - Price: ${hasPriceData}, Chart: ${hasChartData}, Stats: ${hasStats}, Financials: ${hasFinancials}, Company: ${hasCompanyInfo}`);
-    
-    // Only mark sections as loaded if they actually have data
+        
     loadingState.priceLoaded = hasPriceData;
     
     setTimeout(() => {
@@ -408,7 +398,6 @@ async function fetchStockDetails() {
   }
 }
 
-// Chart functionality with improved error handling
 function updateChart() {
   if (!chartCanvas.value || !loadingState.chartDataLoaded) {
     console.warn('Chart canvas not ready');
@@ -420,83 +409,65 @@ function updateChart() {
     return;
   }
 
-  // Always clean up previous chart instance
   if (chartInstance) {
     chartInstance.destroy();
   }
 
   const period = currentPeriod.value;
   
-  // Use cached data if available
-  if (!chartDataCache[period]) {
-    // Make sure we have data for this period
-    const historicalData = stockData.value.historical_data[period]?.data || [];
+  const historicalData = stockData.value.historical_data[period]?.data || [];
 
-    if (!historicalData || !Array.isArray(historicalData) || historicalData.length < 2) {
-      console.warn(`Insufficient data for period: ${period}, points: ${historicalData?.length || 0}`);
-      
-      // Find alternate period with data
-      let foundAlternate = false;
-      for (const p of timePeriods.map(t => t.value)) {
-        const altData = stockData.value.historical_data[p]?.data || [];
-        if (p !== period && Array.isArray(altData) && altData.length >= 2) {
-          console.log(`Switching to period ${p} which has sufficient data (${altData.length} points)`);
-          currentPeriod.value = p;
-          updateChart();
-          foundAlternate = true;
-          break;
-        }
-      }
-      
-      // If no alternate period has data, try to render with what we have or show a message
-      if (!foundAlternate) {
-        if (historicalData && historicalData.length === 1) {
-          // If we have only one data point, duplicate it to create a flat line
-          historicalData.push({...historicalData[0], date: new Date().toISOString()});
-        } else {
-          // No valid data at all, render a message instead
-          const ctx = chartCanvas.value.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, chartCanvas.value.width, chartCanvas.value.height);
-            ctx.fillStyle = '#666';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('No historical data available for this stock', 
-                        chartCanvas.value.width / 2, chartCanvas.value.height / 2);
-          }
-          return;
-        }
-      }
-    }
-
-    // Safely process and validate data
-    const validData = historicalData
-      .filter(item => item && item.date && !isNaN(item.close))
-      .map(item => ({
-        x: new Date(item.date),
-        y: Number(item.close)
-      }))
-      .filter(item => !isNaN(item.x.getTime()) && !isNaN(item.y));
+  if (!historicalData || !Array.isArray(historicalData) || historicalData.length < 2) {
+    console.warn(`Insufficient data for period: ${period}, points: ${historicalData?.length || 0}`);
     
-    if (validData.length < 2) {
-      console.warn('Not enough valid data points after filtering');
-      return;
+    let foundAlternate = false;
+    for (const p of timePeriods.map(t => t.value)) {
+      const altData = stockData.value.historical_data[p]?.data || [];
+      if (p !== period && Array.isArray(altData) && altData.length >= 2) {
+        currentPeriod.value = p;
+        updateChart();
+        foundAlternate = true;
+        break;
+      }
     }
-
-    // Sort data by date to ensure proper rendering
-    validData.sort((a, b) => a.x - b.x);
-
-    // Preprocess data for chart and cache it
-    chartDataCache[period] = {
-      lineData: validData,
-      startPrice: validData[0]?.y,
-      endPrice: validData[validData.length - 1]?.y
-    };
+    
+    if (!foundAlternate) {
+      if (historicalData && historicalData.length === 1) {
+        historicalData.push({...historicalData[0], date: new Date().toISOString()});
+      } else {
+        const ctx = chartCanvas.value.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, chartCanvas.value.width, chartCanvas.value.height);
+          ctx.fillStyle = '#666';
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('No historical data available for this stock', 
+                      chartCanvas.value.width / 2, chartCanvas.value.height / 2);
+        }
+        return;
+      }
+    }
   }
+
+  const validData = historicalData
+    .filter(item => item && item.date && !isNaN(item.close))
+    .map(item => ({
+      x: new Date(item.date),
+      y: Number(item.close)
+    }))
+    .filter(item => !isNaN(item.x.getTime()) && !isNaN(item.y));
   
-  const { lineData, startPrice, endPrice } = chartDataCache[period];
+  if (validData.length < 2) {
+    console.warn('Not enough valid data points after filtering');
+    return;
+  }
+
+  validData.sort((a, b) => a.x - b.x);
   
-  if (!lineData || lineData.length < 2) {
+  const startPrice = validData[0]?.y;
+  const endPrice = validData[validData.length - 1]?.y;
+  
+  if (!validData || validData.length < 2) {
     console.warn('Not enough data points to render chart');
     return;
   }
@@ -507,7 +478,6 @@ function updateChart() {
     return;
   }
 
-  // Default to neutral color if prices are identical
   const trendColor = startPrice < endPrice ? 'rgba(46, 204, 113, 1)' : 
                     startPrice > endPrice ? 'rgba(231, 76, 60, 1)' : 
                     'rgba(52, 152, 219, 1)';
@@ -516,15 +486,13 @@ function updateChart() {
                           startPrice > endPrice ? 'rgba(231, 76, 60, 0.2)' : 
                           'rgba(52, 152, 219, 0.2)';
 
-  // Use try-catch to handle potential chart creation errors
   try {
-    // Use optimized chart options
     chartInstance = new Chart(ctx, {
       type: 'line',
       data: {
         datasets: [{
           label: stockData.value.symbol,
-          data: lineData,
+          data: validData,
           borderColor: trendColor,
           backgroundColor: trendColorLight,
           fill: true,
@@ -536,7 +504,7 @@ function updateChart() {
       },
       options: {
         animation: {
-          duration: lineData.length > 50 ? 0 : 500 // Disable animation for large datasets
+          duration: validData.length > 50 ? 0 : 500
         },
         responsive: true,
         maintainAspectRatio: false,
@@ -571,19 +539,18 @@ function updateChart() {
             ticks: {
               maxRotation: 0,
               autoSkip: true,
-              maxTicksLimit: 8, // Limit number of ticks for better readability
+              maxTicksLimit: 8,
             }
           },
           y: {
             position: 'right',
-            beginAtZero: false, // Better scale for stock prices
+            beginAtZero: false,
           },
         }
       }
     });
   } catch (err) {
     console.error('Error creating chart:', err);
-    // Try to clean up and show a message
     if (ctx) {
       ctx.clearRect(0, 0, chartCanvas.value.width, chartCanvas.value.height);
       ctx.fillStyle = '#666';
@@ -595,14 +562,19 @@ function updateChart() {
   }
 }
 
-// Change time period for the chart
 function changeTimePeriod(period) {
   currentPeriod.value = period;
   updateChart();
 }
 
-// Save stock to watchlist
-async function saveStock() {
+function saveStock() {
+  showConfirmModal.value = true;
+}
+
+async function confirmSaveStock() {
+  if (isSaving.value) return;
+  isSaving.value = true;
+  
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -622,6 +594,7 @@ async function saveStock() {
 
     if (response.status === 409) {
       errorMessage.value = `${symbol.value} is already in your watchlist`;
+      showConfirmModal.value = false;
       showErrorModal.value = true;
       return;
     }
@@ -631,28 +604,24 @@ async function saveStock() {
       throw new Error(data.error || 'Failed to save stock');
     }
 
+    showConfirmModal.value = false;
     showSaveModal.value = true;
   } catch (err) {
     errorMessage.value = err.message || 'An error occurred';
+    showConfirmModal.value = false;
     showErrorModal.value = true;
+  } finally {
+    isSaving.value = false;
   }
 }
 
-// Reset cache when symbol changes
-function resetCache() {
-  chartDataCache = {};
-}
-
-// Watch for route changes to fetch new stock data
 watch(() => route.params.symbol, (newSymbol, oldSymbol) => {
   if (newSymbol && newSymbol !== oldSymbol) {
-    resetCache();
     fetchStockDetails();
   }
 }, { immediate: true });
 
 onMounted(() => {
-  // Initial fetch already handled by the immediate watch above
 });
 </script>
 
@@ -738,7 +707,6 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-/* Skeleton loading styles */
 .skeleton-text {
   height: 1rem;
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
