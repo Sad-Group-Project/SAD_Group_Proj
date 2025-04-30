@@ -90,7 +90,23 @@ function viewStockDetails(symbol) {
 async function fetchPopularStocks() {
   try {
     const backendURL = import.meta.env.VITE_BACKEND_URL;
-    const res = await fetch(`${backendURL}/api/popular_stocks`);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found!");
+      return;
+    }
+
+    const res = await fetch(`${backendURL}/api/popular_stocks`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch popular stocks.");
+    }
+    
     popularStocks.value = await res.json();
     drawChart();
   } catch (err) {
