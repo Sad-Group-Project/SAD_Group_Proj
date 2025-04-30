@@ -84,6 +84,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
 import { useRouter } from 'vue-router';
+import { cacheService } from '../utils/cacheService';
 
 const router = useRouter();
 const stockDataList = ref<any[]>([]);
@@ -109,6 +110,17 @@ const displayedStocks = computed(() => {
   return [];
 });
 
+function setupStockChangeListener() {
+  window.addEventListener('stock-change', () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      cacheService.invalidatePattern('user_stocks');
+      cacheService.invalidatePattern('profile_stocks');
+      fetchStockData();
+    }
+  });
+}
+
 async function fetchStockData() {
   try {
     const token = localStorage.getItem("token");
@@ -117,19 +129,28 @@ async function fetchStockData() {
       return;
     }
 
-    const response = await fetch(`${backendURL}/api/user_stocks`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const cacheKey = `user_stocks_${token.slice(-10)}`;
+    
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log("Cache miss - fetching fresh data from API");
+        const response = await fetch(`${backendURL}/api/user_stocks`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch saved stocks.");
+        }
+
+        return await response.json();
       },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch saved stocks.");
-    }
-
-    const data = await response.json();
+      { ttl: 15 * 60 * 1000 }
+    );
 
     stockDataList.value = data.saved_stocks.map((stock: any) => {
       return {
@@ -258,6 +279,7 @@ function viewStockDetails(symbol: string) {
 }
 
 onMounted(async () => {
+  setupStockChangeListener();
   await fetchStockData();
   updateChart();
 });

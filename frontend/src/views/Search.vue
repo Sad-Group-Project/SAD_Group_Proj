@@ -119,6 +119,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { cacheService } from '../utils/cacheService'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,6 +180,11 @@ async function addStock(symbol) {
 
     if (!res.ok) throw new Error('Failed to save stock')
 
+    cacheService.invalidatePattern('user_stocks')
+    cacheService.invalidatePattern('profile_stocks')
+    
+    window.dispatchEvent(new Event('stock-change'))
+    
     savedSymbol.value = symbol
     showConfirmModal.value = false
     showSavedModal.value = true
@@ -224,11 +230,21 @@ async function performSearch() {
   error.value = ''
   try {
     const backendURL = import.meta.env.VITE_BACKEND_URL
-    const response = await fetch(
-      `${backendURL}/api/search_stock?search_stock=${searchQuery.value.toUpperCase()}`
+    
+    const cacheKey = `search_${searchQuery.value.toUpperCase()}`
+    
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        const response = await fetch(
+          `${backendURL}/api/search_stock?search_stock=${searchQuery.value.toUpperCase()}`
+        )
+        if (!response.ok) throw new Error('Failed to fetch search results')
+        return await response.json()
+      },
+      { ttl: 15 * 60 * 1000 }
     )
-    if (!response.ok) throw new Error('Failed to fetch search results')
-    const data = await response.json()
+    
     results.value = data.quotes || []
   } catch (err) {
     error.value = err.message || 'An error occurred'

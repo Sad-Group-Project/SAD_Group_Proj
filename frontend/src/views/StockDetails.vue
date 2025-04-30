@@ -190,6 +190,7 @@ import { ref, onMounted, computed, watch, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { cacheService } from '../utils/cacheService';
 
 Chart.register(...registerables);
 
@@ -334,29 +335,38 @@ async function fetchStockDetails() {
   try {
     const backendURL = import.meta.env.VITE_BACKEND_URL;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(`${backendURL}/api/stock_details/${symbol.value}`, {
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`Error fetching stock data: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to fetch stock details');
-    }
+    const cacheKey = `stock_details_${symbol.value}`;
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(`${backendURL}/api/stock_details/${symbol.value}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching stock data: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        
+        if (!responseData.success) {
+          throw new Error(responseData.error || 'Failed to fetch stock details');
+        }
+        
+        return responseData;
+      },
+      { ttl: 10 * 60 * 1000 }
+    );
     
     stockData.value = data;
     
     const hasPriceData = data.price_data && 
-                         (data.price_data.current_price !== undefined && 
+                        (data.price_data.current_price !== undefined && 
                           data.price_data.current_price !== null);
                           
     const hasChartData = data.historical_data && 
@@ -364,11 +374,11 @@ async function fetchStockDetails() {
                           period.data && period.data.length > 0);
                           
     const hasStats = data.price_data && 
-                     Object.keys(data.price_data).length > 0;
-                     
+                    Object.keys(data.price_data).length > 0;
+                    
     const hasFinancials = data.financial_metrics && 
-                         Object.keys(data.financial_metrics).length > 0;
-                         
+                          Object.keys(data.financial_metrics).length > 0;
+                          
     const hasCompanyInfo = data.company_info && 
                           data.company_info.name;
         
@@ -604,6 +614,11 @@ async function confirmSaveStock() {
       throw new Error(data.error || 'Failed to save stock');
     }
 
+    cacheService.invalidatePattern('user_stocks');
+    cacheService.invalidatePattern('profile_stocks');
+    
+    window.dispatchEvent(new Event('stock-change'));
+    
     showConfirmModal.value = false;
     showSaveModal.value = true;
   } catch (err) {

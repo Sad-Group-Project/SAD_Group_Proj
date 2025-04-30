@@ -91,6 +91,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { cacheService } from '../utils/cacheService';
 
 const router = useRouter();
 
@@ -137,7 +138,16 @@ async function deleteStock() {
 
     const data = await res.json();
     if (res.ok) {
+      // Invalidate all user stock caches
+      cacheService.invalidatePattern('user_stocks');
+      cacheService.invalidatePattern('profile_stocks');
+      
+      // Trigger an event to notify other components about the stock change
+      window.dispatchEvent(new Event('stock-change'));
+      
+      // Refetch stocks for this component
       await fetchUserStocks();
+      
       showConfirmModal.value = false;
       showSuccessModal.value = true;
     } else {
@@ -155,18 +165,29 @@ async function fetchUserProfile() {
   if (!token) return;
 
   try {
-    const res = await fetch(`${backendURL}/api/user_profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Use caching service for user profile data
+    const cacheKey = `user_profile_${token.slice(-10)}`;
+    
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log("Cache miss - fetching fresh profile data");
+        const res = await fetch(`${backendURL}/api/user_profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    if (res.ok) {
-      const data = await res.json();
-      userProfile.value = data;
-    } else {
-      console.error('Failed to fetch profile:', await res.text());
-    }
+        if (!res.ok) {
+          throw new Error('Failed to fetch profile data');
+        }
+        
+        return await res.json();
+      },
+      { ttl: 15 * 60 * 1000 } // 15-minute cache
+    );
+    
+    userProfile.value = data;
   } catch (err) {
     console.error('Error fetching profile:', err);
   }
@@ -177,13 +198,28 @@ async function fetchUserStocks() {
   if (!token) return;
 
   try {
-    const res = await fetch(`${backendURL}/api/user_stocks`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Use caching service for user stocks data 
+    const cacheKey = `profile_stocks_${token.slice(-10)}`;
+    
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log("Cache miss - fetching fresh stocks data");
+        const res = await fetch(`${backendURL}/api/user_stocks`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    const data = await res.json();
+        if (!res.ok) {
+          throw new Error('Failed to fetch stocks data');
+        }
+        
+        return await res.json();
+      },
+      { ttl: 10 * 60 * 1000 } // 10-minute cache
+    );
+    
     if (data.success) {
       userStocks.value = data.saved_stocks;
     } else {

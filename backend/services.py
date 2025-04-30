@@ -10,141 +10,290 @@ import time
 import random
 import yfinance as yf
 from sqlalchemy.exc import IntegrityError
+from yahoo_fin import stock_info as si
 
 def get_popular_stocks():
     """Returns a list of the most active stocks with mini chart data."""
-    screener = Screener()
-    data = screener.get_screeners('most_actives')
-
     try:
-        stocks_list = data['most_actives']['quotes'][:4]
-    except KeyError:
-        return jsonify({"error": "Could not retrieve stock data"}), 500
+        
+        active_stocks = si.get_day_most_active()[:4]
+        symbols = active_stocks['Symbol'].tolist()
+        
+        stocks_list = []
+        mini_chart = {}
+        
+        for idx, symbol in enumerate(symbols):
+            try:
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                hist = stock.history(period="1d", interval="1h")
+                
+                if not hist.empty:
+                    timestamps = hist.index.strftime("%Y-%m-%dT%H:%M:%S").tolist()
+                    prices = hist['Close'].tolist()
+                    mini_chart[symbol] = {"timestamps": timestamps, "prices": prices}
+                else:
+                    mini_chart[symbol] = {"timestamps": [], "prices": []}
+                
+                stock_data = {
+                    "symbol": symbol,
+                    "company_name": info.get("shortName") or active_stocks.iloc[idx]['Name'],
+                    "current_price": info.get("regularMarketPrice", active_stocks.iloc[idx]['Price']),
+                    "change": info.get("regularMarketChange", 0),
+                    "percent_change": info.get("regularMarketChangePercent", 0),
+                    "mini_chart_data": mini_chart.get(symbol, {"timestamps": [], "prices": []})
+                }
+                stocks_list.append(stock_data)
+            except Exception as e:
+                print(f"Error fetching yfinance data for {symbol}: {str(e)}")
+        
+        if stocks_list:
+            return jsonify(stocks_list)
 
-    symbols = [stock.get("symbol") for stock in stocks_list]
+    except Exception as e:
+        print(f"Error in primary method (yfinance): {str(e)}")
+    
+    try:
+        screener = Screener()
+        data = screener.get_screeners('most_actives')
 
-    ticker_data = Ticker(symbols)
-    hist = ticker_data.history(period="1d", interval="1h")
+        try:
+            stocks_list = data['most_actives']['quotes'][:4]
+        except KeyError:
+            return jsonify({"error": "Could not retrieve stock data"}), 500
 
-    mini_chart = {}
+        symbols = [stock.get("symbol") for stock in stocks_list]
 
-    if hist is None or hist.empty:
-        for symbol in symbols:
-            mini_chart[symbol] = {"timestamps": [], "prices": []}
-    else:
-        if isinstance(hist.index, pd.MultiIndex):
-            grouped = hist.groupby(level=0)
-            for symbol, group in grouped:
-                group = group.reset_index(level=0, drop=True)
-                group.reset_index(inplace=True)
-                timestamps = group["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
-                prices = group["close"].tolist()
-                mini_chart[symbol] = {"timestamps": timestamps, "prices": prices}
-        else:
-            hist.reset_index(inplace=True)
-            timestamps = hist["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
-            prices = hist["close"].tolist()
-            mini_chart[symbols[0]] = {"timestamps": timestamps, "prices": prices}
+        ticker_data = Ticker(symbols)
+        hist = ticker_data.history(period="1d", interval="1h")
 
-        for symbol in symbols:
-            if symbol not in mini_chart:
+        mini_chart = {}
+
+        if hist is None or hist.empty:
+            for symbol in symbols:
                 mini_chart[symbol] = {"timestamps": [], "prices": []}
+        else:
+            if isinstance(hist.index, pd.MultiIndex):
+                grouped = hist.groupby(level=0)
+                for symbol, group in grouped:
+                    group = group.reset_index(level=0, drop=True)
+                    group.reset_index(inplace=True)
+                    timestamps = group["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
+                    prices = group["close"].tolist()
+                    mini_chart[symbol] = {"timestamps": timestamps, "prices": prices}
+            else:
+                hist.reset_index(inplace=True)
+                timestamps = hist["date"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist()
+                prices = hist["close"].tolist()
+                mini_chart[symbols[0]] = {"timestamps": timestamps, "prices": prices}
 
-    stocks = []
-    for stock in stocks_list:
-        symbol = stock.get("symbol")
-        stock_data = {
-            "symbol": symbol,
-            "company_name": stock.get("shortName"),
-            "current_price": stock.get("regularMarketPrice"),
-            "change": stock.get("regularMarketChange"),
-            "percent_change": stock.get("regularMarketChangePercent"),
-            "mini_chart_data": mini_chart.get(symbol, {"timestamps": [], "prices": []})
-        }
-        stocks.append(stock_data)
+            for symbol in symbols:
+                if symbol not in mini_chart:
+                    mini_chart[symbol] = {"timestamps": [], "prices": []}
 
-    return jsonify(stocks)
+        stocks = []
+        for stock in stocks_list:
+            symbol = stock.get("symbol")
+            stock_data = {
+                "symbol": symbol,
+                "company_name": stock.get("shortName"),
+                "current_price": stock.get("regularMarketPrice"),
+                "change": stock.get("regularMarketChange"),
+                "percent_change": stock.get("regularMarketChangePercent"),
+                "mini_chart_data": mini_chart.get(symbol, {"timestamps": [], "prices": []})
+            }
+            stocks.append(stock_data)
+
+        return jsonify(stocks)
+    except Exception as e:
+        return jsonify({"error": f"Failed to retrieve stock data: {str(e)}"}), 500
 
 
 def get_stocks(user_search):
+    try:
+        
+        stock_symbol = user_search.upper()
+        stock = yf.Ticker(stock_symbol)
+        info = stock.info
+        history = stock.history(period="1mo")
+        
+        history_list = []
+        stock_price = info.get("regularMarketPrice", 0)
+        price_24h_ago = None
+        
+        if not history.empty and len(history) > 1:
+            history = history.reset_index()
+            price_24h_ago = history.iloc[-2]["Close"]
+            
+            history_list = [
+                {"date": row["Date"].strftime("%Y-%m-%d"), "price": row["Close"]}
+                for _, row in history.iterrows()
+            ]
+        
+        price_change = 0
+        price_change_percentage = 0
+        
+        if stock_price and price_24h_ago:
+            price_change = stock_price - price_24h_ago
+            price_change_percentage = (price_change / price_24h_ago) * 100
+        
+        stock_data = {
+            'symbol': stock_symbol,
+            'price': stock_price,
+            'recommendation': info.get("recommendationKey"),
+            'change': price_change_percentage,
+            'history': history_list
+        }
+        
+        return stock_data
+    except Exception as e:
+        print(f"Error in primary method (yfinance): {str(e)}")
+    
+    try:
+        stock_symbol = user_search.upper()
+        searchedStock = Ticker(user_search)
+        results = searchedStock.financial_data
+        stock_info = results.get(stock_symbol, {})
 
-    stock_symbol = user_search.upper()
-    searchedStock = Ticker(user_search)
-    results = searchedStock.financial_data
-    stock_info = results.get(stock_symbol, {})
-
-    history_data = searchedStock.history(period="1mo")
-
-    history = []
-    stock_price = stock_info.get("currentPrice")
-    price_24h_ago = None
-
-    if isinstance(history_data, pd.DataFrame) and not history_data.empty:
-        history_data = history_data.reset_index()
-
-        if len(history_data) > 1:
-            price_24h_ago = history_data.iloc[-2]["close"]
-
-        history = [
-            {"date": row["date"].strftime("%Y-%m-%d"), "price": row["close"]}
-            for _, row in history_data.iterrows()
-        ]
-
-    price_change = stock_price - price_24h_ago
-    price_change_percentage = (price_change / price_24h_ago) * 100
-
-    stock_data = {
-        'symbol': stock_symbol,
-        'price': stock_price,
-        'recommendation': stock_info.get("recommendationKey"),
-        'change': price_change_percentage,
-        'history': history
-    }
-
-    return stock_data
-
-def get_multiple_stocks(symbols):
-    tickers = Ticker(symbols, asynchronous=True)
-
-    financials = tickers.financial_data
-    history_data = tickers.history(period="1mo")
-
-    stock_data = {}
-
-    for symbol in symbols:
-        info = financials.get(symbol, {})
-        history_df = history_data.loc[symbol] if isinstance(history_data, pd.DataFrame) and symbol in history_data.index else pd.DataFrame()
+        history_data = searchedStock.history(period="1mo")
 
         history = []
-        stock_price = info.get("currentPrice")
+        stock_price = stock_info.get("currentPrice")
         price_24h_ago = None
 
-        if not history_df.empty:
-            history_df = history_df.reset_index()
-            if len(history_df) > 1:
-                price_24h_ago = history_df.iloc[-2]["close"]
+        if isinstance(history_data, pd.DataFrame) and not history_data.empty:
+            history_data = history_data.reset_index()
+
+            if len(history_data) > 1:
+                price_24h_ago = history_data.iloc[-2]["close"]
 
             history = [
                 {"date": row["date"].strftime("%Y-%m-%d"), "price": row["close"]}
-                for _, row in history_df.iterrows()
+                for _, row in history_data.iterrows()
             ]
 
         price_change = 0
         price_change_percentage = 0
-
+        
         if stock_price and price_24h_ago:
             price_change = stock_price - price_24h_ago
             price_change_percentage = (price_change / price_24h_ago) * 100
 
-        stock_data[symbol] = {
-            'symbol': symbol,
+        stock_data = {
+            'symbol': stock_symbol,
             'price': stock_price,
-            'recommendation': info.get("recommendationKey"),
+            'recommendation': stock_info.get("recommendationKey"),
             'change': price_change_percentage,
             'history': history
         }
 
-    return stock_data
+        return stock_data
+    except Exception as e:
+        print(f"Error in fallback method (yahooquery): {str(e)}")
+        return {
+            'symbol': user_search.upper(),
+            'price': 0,
+            'recommendation': None,
+            'change': 0,
+            'history': []
+        }
+
+def get_multiple_stocks(symbols):
+    try:        
+        stock_data = {}
+        
+        for symbol in symbols:
+            try:
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                history = stock.history(period="1mo")
+                
+                history_list = []
+                stock_price = info.get("regularMarketPrice", 0)
+                price_24h_ago = None
+                
+                if not history.empty and len(history) > 1:
+                    history = history.reset_index()
+                    price_24h_ago = history.iloc[-2]["Close"]
+                    
+                    history_list = [
+                        {"date": row["Date"].strftime("%Y-%m-%d"), "price": row["Close"]}
+                        for _, row in history.iterrows()
+                    ]
+                
+                price_change = 0
+                price_change_percentage = 0
+                
+                if stock_price and price_24h_ago:
+                    price_change = stock_price - price_24h_ago
+                    price_change_percentage = (price_change / price_24h_ago) * 100
+                
+                stock_data[symbol] = {
+                    'symbol': symbol,
+                    'price': stock_price,
+                    'recommendation': info.get("recommendationKey"),
+                    'change': price_change_percentage,
+                    'history': history_list
+                }
+            except Exception as e:
+                print(f"Error fetching yfinance data for {symbol}: {str(e)}")
+        
+        if stock_data:
+            return stock_data
+    except Exception as e:
+        print(f"Error in primary method (yfinance): {str(e)}")
+    
+    try:
+        tickers = Ticker(symbols, asynchronous=True)
+        
+        financials = tickers.financial_data
+        history_data = tickers.history(period="1mo")
+        
+        stock_data = {}
+        
+        for symbol in symbols:
+            info = financials.get(symbol, {})
+            history_df = history_data.loc[symbol] if isinstance(history_data, pd.DataFrame) and symbol in history_data.index else pd.DataFrame()
+            
+            history = []
+            stock_price = info.get("currentPrice")
+            price_24h_ago = None
+            
+            if not history_df.empty:
+                history_df = history_df.reset_index()
+                if len(history_df) > 1:
+                    price_24h_ago = history_df.iloc[-2]["close"]
+                
+                history = [
+                    {"date": row["date"].strftime("%Y-%m-%d"), "price": row["close"]}
+                    for _, row in history_df.iterrows()
+                ]
+            
+            price_change = 0
+            price_change_percentage = 0
+            
+            if stock_price and price_24h_ago:
+                price_change = stock_price - price_24h_ago
+                price_change_percentage = (price_change / price_24h_ago) * 100
+            
+            stock_data[symbol] = {
+                'symbol': symbol,
+                'price': stock_price,
+                'recommendation': info.get("recommendationKey"),
+                'change': price_change_percentage,
+                'history': history
+            }
+        
+        return stock_data
+    except Exception as e:
+        print(f"Error in fallback method (yahooquery): {str(e)}")
+        return {symbol: {
+            'symbol': symbol,
+            'price': 0,
+            'recommendation': None,
+            'change': 0,
+            'history': []
+        } for symbol in symbols}
 
 
 def get_add_stock(symbol, SECRET_KEY):
@@ -261,48 +410,93 @@ def get_user_profile(SECRET_KEY):
     return jsonify(user_info)
 
 def get_search(user_search):
-    results = search(user_search)
-    symbols = [value.get('symbol', 'Unknown') for value in results.get('quotes', [])]
+    try:        
+        result = yf.Ticker(user_search).search()
+        search_data = []
+        
+        for item in result[:10]:
+            try:
+                symbol = item.get('symbol', 'Unknown')
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                hist = stock.history(period="1d", interval="1h")
+                
+                stock_price = info.get("regularMarketPrice", 0.00)
+                previous_close = info.get("previousClose", stock_price)
+                
+                price_change_percent = ((stock_price - previous_close) / previous_close * 100) if previous_close else 0.00
+                
+                chart_data = []
+                if not hist.empty:
+                    chart_data = hist["Close"].dropna().tolist()
+                
+                temp = {
+                    "symbol": symbol,
+                    "longName": info.get("longName", item.get("longname", "Unknown")),
+                    "shortName": info.get("shortName", item.get("shortname", "Unknown")),
+                    "exchange": info.get("exchange", item.get("exchange", "Unknown")),
+                    "exchDisp": item.get("exchDisp", "Unknown"),
+                    "industry": info.get("industry", item.get("industry", "Unknown")),
+                    "regularMarketPrice": stock_price,
+                    "regularMarketChangePercent": price_change_percent,
+                    "chartData": chart_data if chart_data else [0]
+                }
+                
+                search_data.append(temp)
+            except Exception as e:
+                print(f"Error fetching data for {item.get('symbol', 'unknown')}: {str(e)}")
+        
+        if search_data:
+            return jsonify({'quotes': search_data})
+    except Exception as e:
+        print(f"Error in primary method (yfinance): {str(e)}")
+    
+    try:
+        results = search(user_search)
+        symbols = [value.get('symbol', 'Unknown') for value in results.get('quotes', [])]
 
-    if not symbols:
-        return jsonify({'quotes': []}) 
+        if not symbols:
+            return jsonify({'quotes': []}) 
 
-    stock_data = Ticker(symbols)
+        stock_data = Ticker(symbols)
 
-    price_data = stock_data.price
-    history_data = stock_data.history(period="1d", interval="1h")
+        price_data = stock_data.price
+        history_data = stock_data.history(period="1d", interval="1h")
 
-    search_data = []
+        search_data = []
 
-    for value in results.get('quotes', []):
-        symbol = value.get('symbol', 'Unknown')
+        for value in results.get('quotes', []):
+            symbol = value.get('symbol', 'Unknown')
 
-        price_info = price_data.get(symbol, {})
-        stock_price = price_info.get("regularMarketPrice", 0.00)
-        previous_close = price_info.get("regularMarketPreviousClose", stock_price)
+            price_info = price_data.get(symbol, {})
+            stock_price = price_info.get("regularMarketPrice", 0.00)
+            previous_close = price_info.get("regularMarketPreviousClose", stock_price)
 
-        price_change_percent = round(((stock_price - previous_close) / previous_close) * 100, 2) if previous_close else 0.00
+            price_change_percent = round(((stock_price - previous_close) / previous_close) * 100, 2) if previous_close else 0.00
 
-        chart_data = []
-        if isinstance(history_data, pd.DataFrame) and not history_data.empty and symbol in history_data.index:
-            stock_history = history_data.xs(symbol, level=0)
-            chart_data = stock_history["close"].dropna().tolist()
+            chart_data = []
+            if isinstance(history_data, pd.DataFrame) and not history_data.empty and symbol in history_data.index:
+                stock_history = history_data.xs(symbol, level=0)
+                chart_data = stock_history["close"].dropna().tolist()
 
-        temp = {
-            "symbol": symbol,
-            "longName": value.get("longname", "Unknown"),
-            "shortName": value.get("shortname", "Unknown"),
-            "exchange": value.get("exchange", "Unknown"),
-            "exchDisp": value.get("exchDisp", "Unknown"),
-            "industry": value.get("industry", "Unknown"),
-            "regularMarketPrice": stock_price,
-            "regularMarketChangePercent": price_change_percent,
-            "chartData": chart_data if chart_data else [0]
-        }
+            temp = {
+                "symbol": symbol,
+                "longName": value.get("longname", "Unknown"),
+                "shortName": value.get("shortname", "Unknown"),
+                "exchange": value.get("exchange", "Unknown"),
+                "exchDisp": value.get("exchDisp", "Unknown"),
+                "industry": value.get("industry", "Unknown"),
+                "regularMarketPrice": stock_price,
+                "regularMarketChangePercent": price_change_percent,
+                "chartData": chart_data if chart_data else [0]
+            }
 
-        search_data.append(temp)
+            search_data.append(temp)
 
-    return jsonify({'quotes': search_data})
+        return jsonify({'quotes': search_data})
+    except Exception as e:
+        print(f"Error in fallback method (yahooquery): {str(e)}")
+        return jsonify({'quotes': []})
 
 def remove_stock(stock_symbol, SECRET_KEY):
     auth_header = request.headers.get("Authorization")

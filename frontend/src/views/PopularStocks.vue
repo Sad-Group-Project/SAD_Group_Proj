@@ -66,6 +66,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { cacheService } from '../utils/cacheService';
 
 Chart.register(...registerables);
 
@@ -96,18 +97,28 @@ async function fetchPopularStocks() {
       return;
     }
 
-    const res = await fetch(`${backendURL}/api/popular_stocks`, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error("Failed to fetch popular stocks.");
-    }
+    const cacheKey = `popular_stocks`;
     
-    popularStocks.value = await res.json();
+    const data = await cacheService.getOrFetch(
+      cacheKey,
+      async () => {
+        const res = await fetch(`${backendURL}/api/popular_stocks`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch popular stocks.");
+        }
+        
+        return await res.json();
+      },
+      { ttl: 15 * 60 * 1000 }
+    );
+    
+    popularStocks.value = data;
     drawChart();
   } catch (err) {
     console.error('Error fetching popular stocks:', err);
