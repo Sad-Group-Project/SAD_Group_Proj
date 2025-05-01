@@ -138,15 +138,16 @@ async function deleteStock() {
 
     const data = await res.json();
     if (res.ok) {
-      // Invalidate all user stock caches
       cacheService.invalidatePattern('user_stocks');
       cacheService.invalidatePattern('profile_stocks');
       
-      // Trigger an event to notify other components about the stock change
-      window.dispatchEvent(new Event('stock-change'));
+      userStocks.value = userStocks.value.filter(stock => stock.symbol !== stockToDelete.value);
       
-      // Refetch stocks for this component
-      await fetchUserStocks();
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('stock-change', { 
+          detail: { action: 'delete', symbol: stockToDelete.value } 
+        }));
+      }, 100);
       
       showConfirmModal.value = false;
       showSuccessModal.value = true;
@@ -165,13 +166,11 @@ async function fetchUserProfile() {
   if (!token) return;
 
   try {
-    // Use caching service for user profile data
     const cacheKey = `user_profile_${token.slice(-10)}`;
     
     const data = await cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log("Cache miss - fetching fresh profile data");
         const res = await fetch(`${backendURL}/api/user_profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -184,7 +183,7 @@ async function fetchUserProfile() {
         
         return await res.json();
       },
-      { ttl: 15 * 60 * 1000 } // 15-minute cache
+      { ttl: 15 * 60 * 1000 }
     );
     
     userProfile.value = data;
@@ -198,13 +197,11 @@ async function fetchUserStocks() {
   if (!token) return;
 
   try {
-    // Use caching service for user stocks data 
     const cacheKey = `profile_stocks_${token.slice(-10)}`;
     
     const data = await cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log("Cache miss - fetching fresh stocks data");
         const res = await fetch(`${backendURL}/api/user_stocks`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -217,7 +214,7 @@ async function fetchUserStocks() {
         
         return await res.json();
       },
-      { ttl: 10 * 60 * 1000 } // 10-minute cache
+      { ttl: 10 * 60 * 1000 }
     );
     
     if (data.success) {

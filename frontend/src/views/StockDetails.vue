@@ -276,8 +276,24 @@ function formatNumber(value) {
 
 function formatRecommendation(rec) {
   if (!rec) return 'N/A';
-  const formatted = rec.charAt(0).toUpperCase() + rec.slice(1).toLowerCase();
-  return formatted;
+  
+  const upperRec = rec.toUpperCase();
+  
+  if (upperRec === 'BUY') return 'Buy';
+  if (upperRec === 'SELL') return 'Sell';
+  if (upperRec === 'HOLD') return 'Hold';
+  if (upperRec === 'STRONG_BUY' || upperRec === 'STRONG BUY' || upperRec === 'STRONGBUY') return 'Strong Buy';
+  if (upperRec === 'STRONG_SELL' || upperRec === 'STRONG SELL' || upperRec === 'STRONGSELL') return 'Strong Sell';
+  if (upperRec === 'UNDER_PERFORM' || upperRec === 'UNDER PERFORM' || upperRec === 'UNDERPERFORM') return 'Under Perform';
+  
+  if (upperRec === 'B' || upperRec.startsWith('B-') || upperRec.startsWith('B+')) return 'Buy';
+  if (upperRec === 'S' || upperRec.startsWith('S-') || upperRec.startsWith('S+')) return 'Sell';
+  if (upperRec === 'H' || upperRec.startsWith('H-') || upperRec.startsWith('H+')) return 'Hold';
+  if (upperRec === 'SB' || upperRec.startsWith('SB-') || upperRec.startsWith('SB+')) return 'Strong Buy';
+  if (upperRec === 'SS' || upperRec.startsWith('SS-') || upperRec.startsWith('SS+')) return 'Strong Sell';
+  if (upperRec === 'UP' || upperRec.startsWith('UP-') || upperRec.startsWith('UP+')) return 'Under Perform';
+  
+  return rec.charAt(0).toUpperCase() + rec.slice(1).toLowerCase();
 }
 
 function formatStatValue(value, formatter) {
@@ -617,7 +633,9 @@ async function confirmSaveStock() {
     cacheService.invalidatePattern('user_stocks');
     cacheService.invalidatePattern('profile_stocks');
     
-    window.dispatchEvent(new Event('stock-change'));
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('stock-change', { detail: { action: 'add', symbol: symbol.value } }));
+    }, 100);
     
     showConfirmModal.value = false;
     showSaveModal.value = true;

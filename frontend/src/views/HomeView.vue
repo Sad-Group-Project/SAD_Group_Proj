@@ -65,8 +65,8 @@
                 <td :class="{ positive: stock.change > 0, negative: stock.change < 0 }">
                   {{ stock.change.toFixed(2) }}%
                 </td>
-                <td :style="{ color: stock.recommendation === 'buy' ? 'green' : stock.recommendation === 'sell' ? 'red' : 'orange' }">
-                  {{ stock.recommendation.toUpperCase() }}
+                <td :style="{ color: getRecommendationColor(stock.recommendation) }">
+                  {{ formatRecommendation(stock.recommendation) }}
                 </td>
               </tr>
             </tbody>
@@ -96,6 +96,37 @@ let stockChart: Chart | null = null;
 
 const backendURL = import.meta.env.VITE_BACKEND_URL;
 
+function formatRecommendation(rec: string | null) {
+  if (!rec) return 'N/A';
+  
+  const upperRec = rec.toUpperCase();
+  
+  if (upperRec === 'BUY') return 'Buy';
+  if (upperRec === 'SELL') return 'Sell';
+  if (upperRec === 'HOLD') return 'Hold';
+  if (upperRec === 'STRONG_BUY' || upperRec === 'STRONG BUY' || upperRec === 'STRONGBUY') return 'Strong Buy';
+  if (upperRec === 'STRONG_SELL' || upperRec === 'STRONG SELL' || upperRec === 'STRONGSELL') return 'Strong Sell';
+  if (upperRec === 'UNDER_PERFORM' || upperRec === 'UNDER PERFORM' || upperRec === 'UNDERPERFORM') return 'Under Perform';
+  
+  if (upperRec === 'B' || upperRec.startsWith('B-') || upperRec.startsWith('B+')) return 'Buy';
+  if (upperRec === 'S' || upperRec.startsWith('S-') || upperRec.startsWith('S+')) return 'Sell';
+  if (upperRec === 'H' || upperRec.startsWith('H-') || upperRec.startsWith('H+')) return 'Hold';
+  if (upperRec === 'SB' || upperRec.startsWith('SB-') || upperRec.startsWith('SB+')) return 'Strong Buy';
+  if (upperRec === 'SS' || upperRec.startsWith('SS-') || upperRec.startsWith('SS+')) return 'Strong Sell';
+  if (upperRec === 'UP' || upperRec.startsWith('UP-') || upperRec.startsWith('UP+')) return 'Under Perform';
+  
+  return rec.charAt(0).toUpperCase() + rec.slice(1).toLowerCase();
+}
+
+function getRecommendationColor(rec: string | null) {
+  if (!rec) return '';
+  
+  const upperRec = rec.toUpperCase();
+  if (upperRec.includes('BUY') || upperRec === 'STRONG_BUY') return '#27ae60';
+  if (upperRec.includes('SELL') || upperRec === 'STRONG_SELL') return '#c0392b';
+  return '#f39c12';
+}
+
 const displayedStocks = computed(() => {
   if (stockDataList.value.length <= 5) {
     return stockDataList.value;
@@ -111,13 +142,31 @@ const displayedStocks = computed(() => {
 });
 
 function setupStockChangeListener() {
-  window.addEventListener('stock-change', () => {
+  window.addEventListener('stock-change', (event) => {
     const token = localStorage.getItem("token");
-    if (token) {
-      cacheService.invalidatePattern('user_stocks');
-      cacheService.invalidatePattern('profile_stocks');
-      fetchStockData();
+    if (!token) return;
+    
+    const customEvent = event as CustomEvent;
+    if (customEvent.detail) {
+      const { action, symbol } = customEvent.detail;
+      
+      if (action === 'delete') {
+        stockDataList.value = stockDataList.value.filter(stock => stock.symbol !== symbol);
+        updateChart();
+        return;
+      }
+      
+      if (action === 'add') {
+        setTimeout(() => {
+          fetchStockData();
+        }, 300);
+        return;
+      }
     }
+    
+    setTimeout(() => {
+      fetchStockData();
+    }, 200);
   });
 }
 
@@ -134,7 +183,6 @@ async function fetchStockData() {
     const data = await cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log("Cache miss - fetching fresh data from API");
         const response = await fetch(`${backendURL}/api/user_stocks`, {
           method: "GET",
           headers: {

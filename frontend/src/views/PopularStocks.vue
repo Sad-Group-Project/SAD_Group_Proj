@@ -170,10 +170,10 @@ function drawChart() {
         x: {
           type: 'time',
           time: {
-            unit: 'hour',
-            tooltipFormat: 'hh:mm a',
+            unit: 'week',
+            tooltipFormat: 'MMM dd, yyyy',
             displayFormats: {
-              hour: 'hh:mm a',
+              week: 'MMM dd',
             },
           },
           ticks: {
